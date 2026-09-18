@@ -45,6 +45,63 @@ def calculate_cube_roi(marker_center, marker_size_px):
     )
 
 
+def detect_cube_color(roi):
+    hsv = cv2.cvtColor(
+        roi,
+        cv2.COLOR_BGR2HSV
+    )
+
+    color_ranges = {
+        "green": (
+            np.array([40, 70, 50]),
+            np.array([95, 255, 255])
+        ),
+        "blue": (
+            np.array([95, 70, 50]),
+            np.array([130, 255, 255])
+        ),
+        "purple": (
+            np.array([130, 70, 50]),
+            np.array([170, 255, 255])
+        ),
+        "white": (
+            np.array([0, 0, 150]),
+            np.array([179, 70, 255])
+        )
+    }
+
+    total_pixels = roi.shape[0] * roi.shape[1]
+
+    color_percentages = {}
+
+    for color, (lower, upper) in color_ranges.items():
+        mask = cv2.inRange(
+            hsv,
+            lower,
+            upper
+        )
+
+        pixels_detected = cv2.countNonZero(mask)
+
+        percentage = (
+            pixels_detected / total_pixels
+        ) * 100
+
+        color_percentages[color] = percentage
+
+    detected_color = max(
+        color_percentages,
+        key=color_percentages.get
+    )
+
+    if color_percentages[detected_color] < 15:
+        return None, color_percentages
+
+    return detected_color, color_percentages
+
+
+
+
 def main():
     camera = cv2.VideoCapture(0)
 
@@ -84,11 +141,28 @@ def main():
 
             x_min_roi, y_min_roi, x_max_roi, y_max_roi = roi
 
+            roi_image = frame[
+                y_min_roi:y_max_roi,
+                x_min_roi:x_max_roi
+            ]
+
+            color, percentages = detect_cube_color(roi_image)
+
+            print(
+                f"ID: {marker_id} | "
+                f"Cor: {color} | "
+                f"Percentuais: {percentages}"
+            )
+
             print(
                 f"ID: {marker_id} | "
                 f"ArUco: {marker_center} | "
                 f"Cubo: {cube_center}"
             )
+
+
+            if roi_image.size > 0:
+                cv2.imshow(f"Cube ROI {marker_id}", roi_image)
 
             cv2.circle(
                 frame,
