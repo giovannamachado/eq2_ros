@@ -192,3 +192,6 @@ if __name__ == "__main__":
     d = {"detection":0.4,"presence":0.4,"traking":0.6}
     det = handDetection(cross_mode=True)
     det.main()
+
+else:
+    print(f"Other HandD: {__name__}")

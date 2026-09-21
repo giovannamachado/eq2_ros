@@ -1,15 +1,22 @@
-import handDetect.handDetector
+from EQ2_Back.src.handDetect.handDetector import *
 import pytest
 from random import randint,random
 @pytest.fixture
 def detector():
-    instancia = handDetector.handDetection()
+    instancia = handDetection()
     return instancia
 @pytest.fixture
 def handD():
     hand = {i:[randint(1,100)*random() for _ in range(4)] for i in range(5)}
-    instancia = handDetector.handDist(0.5,1.0,finger_dists=hand,comp_fingers={2:1.0})
+    instancia = handDist(0.5,1.0,finger_dists=hand,comp_fingers={2:1.0})
     return instancia
-def test_1(handD):
+@pytest.mark.parametrize(
+   "a, esperado",
+   [
+       (0.5, True),
+       (1, False),
+   ],
+   ids=["a", "b"],)
+def test_1(handD,a,esperado):
     print(handD)
-    assert handD.x == 0.5
+    assert (handD.x == a) == esperado
