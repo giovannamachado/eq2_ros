@@ -11,9 +11,14 @@ ROI_MARGIN_CM = 0.5
 
 
 def calculate_cube_roi(marker_center, marker_size_px):
-    pixels_per_cm = marker_size_px / ARUCO_SIZE_CM
 
-    distance_px = pixels_per_cm * CUBE_DISTANCE_CM
+    pixels_per_cm = (
+        marker_size_px / ARUCO_SIZE_CM
+    )
+
+    distance_px = (
+        pixels_per_cm * CUBE_DISTANCE_CM
+    )
 
     cube_center = (
         marker_center[0],
@@ -120,7 +125,6 @@ def detect_cube_color(roi):
 
         color_percentages[color] = percentage
 
-        # Investigação específica do azul
         if color == "blue":
 
             blue_hues = hue[mask > 0]
@@ -188,19 +192,8 @@ def main():
         for marker_id, info in markers.items():
 
             marker_center = info["center"]
-            corners = info["corners"]
 
-            x_min = np.min(
-                corners[:, 0]
-            )
-
-            x_max = np.max(
-                corners[:, 0]
-            )
-
-            marker_size_px = (
-                x_max - x_min
-            )
+            marker_size_px = info["size_px"]
 
             cube_center, roi = calculate_cube_roi(
                 marker_center,
