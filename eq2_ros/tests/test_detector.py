@@ -1,4 +1,4 @@
-from src.handDetect.handDetector import *
+from src.eq2_ros.handDetector import *
 import pytest
 from random import randint,random
 @pytest.fixture
@@ -17,6 +17,10 @@ def handD():
        (1, False),
    ],
    ids=["a", "b"],)
-def test_1(handD,a,esperado):
+def test_handDist(handD,a,esperado):
     print(handD)
     assert (handD.x == a) == esperado
+
+def test_Detector(detector:handDetection):
+    detector.main()
+    assert detector.mzone != None

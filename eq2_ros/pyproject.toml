@@ -1,13 +1,12 @@
 [project]
-name = "eq2-back"
+name = "eq2-ros"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "LucasTFerraz",email = "ltf@softex.cin.ufpe.br"},
-    {name = "Outro",email = "Outro@softex.cin.ufpe.br"}
+    {name = "Lucas Tenorio",email = "ltf@softex.cin.ufpe.br"}
 ]
-requires-python = ">=3.14"
 readme = "README.md"
+requires-python = ">=3.14"
 dependencies = [
     "pytest (>=9.1.1,<10.0.0)",
     "opencv-python>=5.0.0.93",
@@ -16,8 +15,13 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "handDetect", from = "src"}]
+packages = [{include = "eq2_ros", from = "src"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)"
+]
