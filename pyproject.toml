@@ -1,0 +1,24 @@
+[project]
+package-mode = false
+
+
+name = "EQ2_Back"
+version = "0.1.0"
+description = ""
+pythonpath = ["src"]
+authors = [
+    {name = "LucasTFerraz",email = "ltf@softex.cin.ufpe.br"},
+    {name = "Outro",email = "Outro@softex.cin.ufpe.br"}
+]
+requires-python = ">=3.14"
+dependencies = [
+    "pytest (>=9.1.1,<10.0.0)",
+    "opencv-python>=5.0.0.93",
+    "numpy>=2.5.1",
+    "mediapipe>=1.0.1"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
