@@ -38,6 +38,7 @@ class handDetection:
                  limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
                  cross_mode = False):#O modo de exibição das zonas da imagem
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
+        self._running = False
         self.cross_mode = cross_mode
         self.mzone = (max_zone_size[0]/2,max_zone_size[1]/2) if isinstance(max_zone_size,tuple) else (max_zone_size/2,max_zone_size/2)#sempre usa metade do numero entregue
         self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2) if isinstance(dead_zone_size,tuple) else (dead_zone_size/2,dead_zone_size/2)
@@ -90,6 +91,13 @@ class handDetection:
             elif p<(dist): #caso antes da zona
                 return max((p-(dist))/(dist-self.mzone[i]),-1.0)#distancia entre mão e zona morta/ distancia entra as duas zonas
         return 0
+
+    @property
+    def is_running(self):# Verifica se esta rodando
+        return self._running
+
+    def stop_running(self):
+        self._running = False
 
     @property
     def hand_dist(self):# cria um objeto handDist
@@ -156,7 +164,8 @@ class handDetection:
         handSwitch = {0:'Left',1:'Right'}#corrige o lado das mãos
         x,y = self.rez
         cv.namedWindow('Webcam', cv.WINDOW_KEEPRATIO)
-        while True:
+        self._running = True
+        while self._running:
             ret, frame = self.cap.read()
             self.frame = cv.flip(frame,1)
             if not ret: continue
@@ -176,6 +185,7 @@ class handDetection:
 
         self.cap.release()
         cv.destroyAllWindows()
+        self._running = False
 
 
 if __name__ == "__main__":
