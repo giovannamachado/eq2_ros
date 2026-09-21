@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from markers.marker import create_detector, detect_markers
+from src.markers.marker import create_detector, detect_markers
 
 
 ARUCO_SIZE_CM = 2
@@ -46,48 +46,112 @@ def calculate_cube_roi(marker_center, marker_size_px):
 
 
 def detect_cube_color(roi):
+
     hsv = cv2.cvtColor(
         roi,
         cv2.COLOR_BGR2HSV
     )
 
+    hue = hsv[:, :, 0]
+    saturation = hsv[:, :, 1]
+    value = hsv[:, :, 2]
+
+    print(
+        "Hue mínimo:",
+        np.min(hue)
+    )
+
+    print(
+        "Hue máximo:",
+        np.max(hue)
+    )
+
+    print(
+        "Hue médio:",
+        np.mean(hue)
+    )
+
     color_ranges = {
+
         "green": (
             np.array([40, 70, 50]),
             np.array([95, 255, 255])
         ),
+
         "blue": (
             np.array([95, 70, 50]),
             np.array([130, 255, 255])
         ),
+
         "purple": (
             np.array([130, 70, 50]),
             np.array([170, 255, 255])
         ),
+
         "white": (
             np.array([0, 0, 150]),
             np.array([179, 70, 255])
         )
     }
 
-    total_pixels = roi.shape[0] * roi.shape[1]
+    total_pixels = (
+        roi.shape[0] *
+        roi.shape[1]
+    )
 
     color_percentages = {}
 
     for color, (lower, upper) in color_ranges.items():
+
         mask = cv2.inRange(
             hsv,
             lower,
             upper
         )
 
-        pixels_detected = cv2.countNonZero(mask)
+        pixels_detected = cv2.countNonZero(
+            mask
+        )
 
         percentage = (
-            pixels_detected / total_pixels
+            pixels_detected /
+            total_pixels
         ) * 100
 
         color_percentages[color] = percentage
+
+        # Investigação específica do azul
+        if color == "blue":
+
+            blue_hues = hue[mask > 0]
+            blue_saturation = saturation[mask > 0]
+            blue_value = value[mask > 0]
+
+            if len(blue_hues) > 0:
+
+                print(
+                    "Hue dos pixels classificados "
+                    "como azul:",
+                    "mínimo =", np.min(blue_hues),
+                    "| máximo =", np.max(blue_hues),
+                    "| médio =", np.mean(blue_hues)
+                )
+
+                print(
+                    "Saturation dos pixels "
+                    "classificados como azul:",
+                    "mínimo =", np.min(blue_saturation),
+                    "| máximo =", np.max(blue_saturation),
+                    "| médio =", np.mean(blue_saturation)
+                )
+
+                print(
+                    "Value dos pixels "
+                    "classificados como azul:",
+                    "mínimo =", np.min(blue_value),
+                    "| máximo =", np.max(blue_value),
+                    "| médio =", np.mean(blue_value)
+                )
 
     detected_color = max(
         color_percentages,
@@ -100,18 +164,20 @@ def detect_cube_color(roi):
     return detected_color, color_percentages
 
 
-
-
 def main():
+
     camera = cv2.VideoCapture(0)
 
     detector = create_detector()
 
     while True:
+
         ret, frame = camera.read()
 
         if not ret:
-            print("Erro ao capturar imagem da câmera.")
+            print(
+                "Erro ao capturar imagem da câmera."
+            )
             break
 
         markers = detect_markers(
@@ -132,37 +198,49 @@ def main():
                 corners[:, 0]
             )
 
-            marker_size_px = x_max - x_min
+            marker_size_px = (
+                x_max - x_min
+            )
 
             cube_center, roi = calculate_cube_roi(
                 marker_center,
                 marker_size_px
             )
 
-            x_min_roi, y_min_roi, x_max_roi, y_max_roi = roi
+            (
+                x_min_roi,
+                y_min_roi,
+                x_max_roi,
+                y_max_roi
+            ) = roi
 
             roi_image = frame[
                 y_min_roi:y_max_roi,
                 x_min_roi:x_max_roi
             ]
 
-            color, percentages = detect_cube_color(roi_image)
+            if roi_image.size > 0:
 
-            print(
-                f"ID: {marker_id} | "
-                f"Cor: {color} | "
-                f"Percentuais: {percentages}"
-            )
+                color, percentages = detect_cube_color(
+                    roi_image
+                )
+
+                print(
+                    f"ID: {marker_id} | "
+                    f"Cor: {color} | "
+                    f"Percentuais: {percentages}"
+                )
+
+                cv2.imshow(
+                    f"Cube ROI {marker_id}",
+                    roi_image
+                )
 
             print(
                 f"ID: {marker_id} | "
                 f"ArUco: {marker_center} | "
                 f"Cubo: {cube_center}"
             )
-
-
-            if roi_image.size > 0:
-                cv2.imshow(f"Cube ROI {marker_id}", roi_image)
 
             cv2.circle(
                 frame,
