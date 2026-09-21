@@ -1,9 +1,13 @@
 from dataclasses import dataclass
+import pathlib
 
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
 from math import dist as pointDist
+import os
+
+
 
 @dataclass
 class handDist:#classe que guarda as informações
@@ -27,13 +31,14 @@ class handDist:#classe que guarda as informações
         #return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"
         cs = [f"Finger {k:<2}: [{", ".join(f"{f"{n:.1f}":>5}" for n in v)},{self.closedFinger(k)}]" for k,v in self.finger_dists.items()]
         return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed}){"".join(f"\n\t\t{v}" for v in cs)}"
-    
+#GIT/ep2_ros/mediapipe/files/hand_landmarker.task"
+
 class handDetection:
     def __init__(self,#varios valores padrão
                  dead_zone_size= (160,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
                  max_zone_size= (160,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
                  frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
-                 task_path = "GIT/ep2_ros/mediapipe/files/hand_landmarker.task",#caminho para o arquivo tsak do mediapipe
+                 task_path =  os.path.join(pathlib.Path(__file__).parent.resolve(),"files/hand_landmarker.task"),#caminho para o arquivo tsak do mediapipe
                  confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
                  limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
                  cross_mode = False):#O modo de exibição das zonas da imagem

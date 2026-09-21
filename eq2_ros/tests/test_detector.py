@@ -23,4 +23,5 @@ def test_handDist(handD,a,esperado):
 
 def test_Detector(detector:handDetection):
     detector.main()
-    assert detector.mzone != None
+    dist = detector.hand_dist
+    assert dist != None
