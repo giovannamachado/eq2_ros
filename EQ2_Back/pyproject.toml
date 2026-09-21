@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "eq2_back", from = "src"},{include = "handDetect", from = "src"}]
+packages = [{include = "handDetect", from = "src"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

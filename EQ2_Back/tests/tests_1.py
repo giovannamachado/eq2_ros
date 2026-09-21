@@ -1,4 +1,4 @@
-from EQ2_Back.src.handDetect.handDetector import *
+from src.handDetect.handDetector import *
 import pytest
 from random import randint,random
 @pytest.fixture
