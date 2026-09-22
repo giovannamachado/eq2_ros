@@ -21,7 +21,21 @@ def test_handDist(handD,a,esperado):
     print(handD)
     assert (handD.x == a) == esperado
 
-def test_Detector(detector:handDetection):
-    detector.run()
+@pytest.mark.parametrize(
+   "limit, failure",#se fizer mias de um teste ele falha
+   [ 
+       (120,False),
+       #(1,True),
+   ],)
+def test_Detector(detector:handDetection,limit,failure):
+    if limit:
+        detector.run(limit=limit)
+    else:
+        detector.run()
     dist = detector.hand_dist
-    assert dist != None
+    assert dist.closed != None
+
+
+
+    
+

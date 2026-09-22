@@ -7,8 +7,6 @@ import numpy as np
 from math import dist as pointDist
 import os
 
-
-
 @dataclass
 class handDist:#classe que guarda as informações
     x:float
@@ -18,13 +16,17 @@ class handDist:#classe que guarda as informações
     @property
     def closed(self):
         count = 0
+        if all(p <= 0 for points in self.finger_dists.values() for p in points):
+            return False
         for points in self.finger_dists.values():
-
+            
             if all(points[0]<points[k] for k,v in self.comp_fingers.items()):#se distancia da ponta do dedo for menor, o dedo é considerado como fechado
                 count+=1
         return count>=4
     def closedFinger(self,n):
         points = self.finger_dists[n]
+        if all(p <= 0 for p in points):
+            return False
         return all(points[0]<points[k] for k,v in self.comp_fingers.items())
         
     def __str__(self):
@@ -47,16 +49,9 @@ class handDetection:
         self.cross_mode = cross_mode
         self.mzone = (max_zone_size[0]/2,max_zone_size[1]/2) if isinstance(max_zone_size,tuple) else (max_zone_size/2,max_zone_size/2)#sempre usa metade do numero entregue
         self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2) if isinstance(dead_zone_size,tuple) else (dead_zone_size/2,dead_zone_size/2)
-        self.cap = cv.VideoCapture(0, cv.CAP_DSHOW)#inicio da captura
-        # self.cap = cv.VideoCapture(0,cv.CAP_V4L2)
-        # self.cap.set(cv.CAP_PROP_FOURCC,cv.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, frame_height)#tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
-        self.cap.set(cv.CAP_PROP_FRAME_WIDTH, frame_width)
-        _, self.frame = self.cap.read()#verifica a resolução da captura
-        y,x = self.frame.shape[:2]
-        self.rez = (x,y) # resolução da captura
-        self.center = (int(x/2),int(y/2)) # centro da captura
-        self.hand_center = (-x,-y) #centro da mão
+        self.rez = (frame_width,frame_height) # temporario
+        self.center = (limit,limit) # temporario
+        self.hand_center = (limit-1,limit-1) #temporario
         self.duos = [(0,1),(0,5),(0,17),(5,9),(9,13),(13,17)]#duplas de pontos para desenhar linhas em um metodo
         self.duos +=[(v+i-1,v+i) for v in set([vl[1] for vl in self.duos]) for i in range(1,4) if v!=0]+[(2,5)]
         options = mp.tasks.vision.HandLandmarkerOptions(#opçoes do detector
@@ -73,15 +68,19 @@ class handDetection:
     #     pass
 
     def _hand_dists(self):#detecta se a mão aparenta estar fechada
-        point = self.hand_points[0]# ponto base
-        fingers = {}# lista de dedos
-        for i in [4*j for j in range(1,6)]:
-            dists = []
-            dists.append(pointDist(self.hand_points[i],point))#distancia da ponta do dedo com o ponto base
-            dists.append(pointDist(self.hand_points[i-1],point))#distancia do segundo ponto do dedo com o ponto base
-            dists.append(pointDist(self.hand_points[i-2],point))
-            dists.append(pointDist(self.hand_points[i-3],point))
-            fingers[i] = dists
+        if hasattr(self,"hand_points"):
+            point = self.hand_points[0]# ponto base
+            fingers = {}# lista de dedos
+            for i in [4*j for j in range(1,6)]:
+                dists = []
+                dists.append(pointDist(self.hand_points[i],point))#distancia da ponta do dedo com o ponto base
+                dists.append(pointDist(self.hand_points[i-1],point))#distancia do segundo ponto do dedo com o ponto base
+                dists.append(pointDist(self.hand_points[i-2],point))
+                dists.append(pointDist(self.hand_points[i-3],point))
+                fingers[i] = dists
+            
+        else:
+            fingers = {k:[0]*4 for k in[4*j for j in range(1,6)]}
             
         return fingers
     
@@ -164,14 +163,25 @@ class handDetection:
             self.frame = cv.circle(self.frame,p,2,color=(255,0,255),thickness=-1)
         print(f"{id}\n\tSide:{cat}\n\tDist:{dist}")# print para as informações das mãos
         
-    def run(self):
-        
+    def run(self,limit = False):
+        # if not isinstance(limit,int):
+        #     limit = False
+        cap = cv.VideoCapture(0, cv.CAP_DSHOW)#inicio da captura
+        cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.rez[1])#tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
+        cap.set(cv.CAP_PROP_FRAME_WIDTH, self.rez[0])
+        _, self.frame = cap.read()#verifica a resolução da captura
+        y,x = self.frame.shape[:2]
+        self.rez = (x,y) # resolução da captura
+        self.center = (int(x/2),int(y/2)) # centro da captura
+        self.hand_center = (-x,-y) #centro da mão
         handSwitch = {0:'Left',1:'Right'}#corrige o lado das mãos
         x,y = self.rez
         cv.namedWindow('Webcam', cv.WINDOW_KEEPRATIO)
         self._running = True
+        if limit: counter = 0
         while self._running:
-            ret, frame = self.cap.read()
+            ret, frame = cap.read()
+            
             self.frame = cv.flip(frame,1)
             if not ret: continue
             frame_RGB = mp.Image(mp.ImageFormat.SRGB,cv.cvtColor(self.frame,cv.COLOR_BGR2RGB))
@@ -186,9 +196,14 @@ class handDetection:
                 box =  cv.boxPoints(r) #pontos da caixa
                 self._drawHandAndBox(box.astype(np.int64),handSwitch[detected.handedness[0][0].index],"Main Hand Stats:")
             cv.imshow('Webcam', self.frame)#mostra a imagem capturada com as alterações feitas
-            if cv.waitKey(1) & 0xFF == ord('q'): break
+            if limit: 
+                print(f"limit{counter}")
+                counter+=1
+                if counter == limit:
+                    break
+            if (cv.waitKey(1) & 0xFF == ord('q')): break
 
-        self.cap.release()
+        cap.release()
         cv.destroyAllWindows()
         self._running = False
 
