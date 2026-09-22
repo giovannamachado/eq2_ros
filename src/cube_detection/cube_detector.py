@@ -41,9 +41,9 @@ def detect_cube_color(roi):
 
         "green": (np.array([40, 70, 50]), np.array([95, 255, 255])),
 
-        "blue": (np.array([95, 70, 50]), np.array([130, 255, 255])),
+        "blue": (np.array([99, 219, 101]), np.array([115, 255, 255])),
 
-        "purple": (np.array([130, 70, 50]), np.array([170, 255, 255])),
+        "purple": (np.array([115, 120, 0]), np.array([126, 218, 255])),
 
         "white": (np.array([0, 0, 150]), np.array([179, 70, 255]))
     }
@@ -140,8 +140,12 @@ def main():
 
             cv2.rectangle(frame, (x_min_roi, y_min_roi), (x_max_roi, y_max_roi), (255, 255, 0), 2)
 
-        print("Estado da prateleira:")
+        # print("Estado da prateleira:")
         print(shelf_state)
+
+        # for linha in shelf_state:
+        #     if linha['occupied']:
+        #         print(linha['color'])
 
         cv2.imshow("Cube Detector", frame)
 
