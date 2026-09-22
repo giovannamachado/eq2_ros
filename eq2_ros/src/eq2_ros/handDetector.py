@@ -120,15 +120,15 @@ class handDetection:
     #     self.__hand_dist = handDist(x,y,finger_dists=fing,comp_fingers={2:1.0})
     
 
-    def __doubleLine(self,p1,p2,color,color2):#desenha duas linhas uma em cima da outra
+    def _doubleLine(self,p1,p2,color,color2):#desenha duas linhas uma em cima da outra
         cv.line(self.frame,p1,p2,color=color,thickness=2)
         cv.line(self.frame,p1,p2,color=color2,thickness=1)
 
-    def __doublePoint(self,p1,color,color2,size = 2):#desenha dois pontos um em cima da outro
+    def _doublePoint(self,p1,color,color2,size = 2):#desenha dois pontos um em cima da outro
         cv.circle(self.frame,p1,size+1,color=color,thickness=2)
         cv.circle(self.frame,p1,size,color=color2,thickness=1)
 
-    def __drawnZones(self):# desenha a zona morta e zona maxima
+    def _drawnZones(self):# desenha a zona morta e zona maxima
         zx = int(self.dzone[0])
         zy = int(self.dzone[1])
         mx = int(self.mzone[0])
@@ -141,20 +141,20 @@ class handDetection:
         else: 
             duos = [((cx+zx,zy+cy),(cx-zx,cy-zy),(0,0,0)),#zona morta
                     ((mx,my),(rx-mx,ry-my),(255,255,255))]#zona maxima
-        self.__doublePoint((cx,cy),(255,255,255),(0,0,0))#ponto central da tela
+        self._doublePoint((cx,cy),(255,255,255),(0,0,0))#ponto central da tela
         for p1,p2,color in duos:#Cria os retangulos
             cv.rectangle(self.frame,pt1=p1,pt2=p2,color=color,thickness=3)
 
-    def __drawHandAndBox(self,box,cat,id): 
+    def _drawHandAndBox(self,box,cat,id): 
         (x,y) =(int(self.hand_center[0]),int(self.hand_center[1]))#poisição do centro da mão em inteiros
         #linha para do centro da imagem para o centro da mão
         (cx,cy) = self.center
-        self.__doubleLine((cx,cy),(x,cy),(127,127,0),(127,0,255))
-        self.__doubleLine((x,cy),(x,y),(127,127,0),(127,0,255))
+        self._doubleLine((cx,cy),(x,cy),(127,127,0),(127,0,255))
+        self._doubleLine((x,cy),(x,y),(127,127,0),(127,0,255))
         #desenha um retangulo ao redor dos pontos da mão
         dist = self.hand_dist
         cv.drawContours(self.frame,[box],contourIdx=0,color=(255,0,0),thickness=2)
-        self.__doublePoint((x,y),(0,0,255),(0,255,0),size=3)#ponto central do retangulo
+        self._doublePoint((x,y),(0,0,255),(0,255,0),size=3)#ponto central do retangulo
         cv.putText(self.frame,f"{cat}: {dist}".replace("\t","    "),(x,y),cv.FONT_HERSHEY_PLAIN,1,(0,255,255))#Categoria(Lado) e status da mão
         #desenha linhas entre os dedos da mão
         for a,b in self.duos:#usa as duplas de indexes dos pontos para desenhar as linhas
@@ -164,7 +164,7 @@ class handDetection:
             self.frame = cv.circle(self.frame,p,2,color=(255,0,255),thickness=-1)
         print(f"{id}\n\tSide:{cat}\n\tDist:{dist}")# print para as informações das mãos
         
-    def main(self):
+    def run(self):
         
         handSwitch = {0:'Left',1:'Right'}#corrige o lado das mãos
         x,y = self.rez
@@ -177,14 +177,14 @@ class handDetection:
             frame_RGB = mp.Image(mp.ImageFormat.SRGB,cv.cvtColor(self.frame,cv.COLOR_BGR2RGB))
             detected = self.detector.detect(frame_RGB)#resultado da detecção
             size = len(detected.hand_landmarks)
-            self.__drawnZones()#desenha a zona morta
+            self._drawnZones()#desenha a zona morta
             if size>0:#ignora se nenuma mão for detectada
                 self.hand_points = [(int(l.x*x),int(l.y*y)) for l in detected.hand_landmarks[0]]#pontos da mão
 
                 r = cv.minAreaRect(np.array([self.hand_points]))# pega os pontos da  e centro da mão
                 self.hand_center = r[0]#centro da mão
                 box =  cv.boxPoints(r) #pontos da caixa
-                self.__drawHandAndBox(box.astype(np.int64),handSwitch[detected.handedness[0][0].index],"Main Hand Stats:")
+                self._drawHandAndBox(box.astype(np.int64),handSwitch[detected.handedness[0][0].index],"Main Hand Stats:")
             cv.imshow('Webcam', self.frame)#mostra a imagem capturada com as alterações feitas
             if cv.waitKey(1) & 0xFF == ord('q'): break
 
@@ -196,7 +196,7 @@ class handDetection:
 if __name__ == "__main__":
     d = {"detection":0.4,"presence":0.4,"traking":0.6}
     det = handDetection(cross_mode=True)
-    det.main()
+    det.run()
 
 else:
     print(f"Other HandD: {__name__}")

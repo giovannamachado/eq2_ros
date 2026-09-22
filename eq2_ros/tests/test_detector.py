@@ -22,6 +22,6 @@ def test_handDist(handD,a,esperado):
     assert (handD.x == a) == esperado
 
 def test_Detector(detector:handDetection):
-    detector.main()
+    detector.run()
     dist = detector.hand_dist
     assert dist != None
