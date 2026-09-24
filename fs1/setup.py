@@ -1,4 +1,7 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
+
 
 package_name = 'fs1'
 
@@ -10,6 +13,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share',package_name,'launch'),glob(os.path.join('launch','launch.[pxy][yma]'))),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -24,7 +28,11 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'my_node = fs1.my_node:main'
+            'my_node = fs1.my_node:main',
+            'gripper_client = fs1.gripper_client:main',
+            'gripper_control = fs1.gripper_control:main',
+            'joints_control = fs1.joints_control:main',
+            'kinova_api = fs1.kinova_api:main'
         ],
     },
 )
