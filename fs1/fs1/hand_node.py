@@ -106,7 +106,7 @@ class HandNode(Node):
         self.detector = mp.tasks.vision.HandLandmarker.create_from_options(options)#detector
         self.send_hand = self.create_publisher(String,"/hand_status",10)
         self.stater_stopper = self.create_subscription(String,"/switchHandDetection",self.switch_running,10)
-        self.get_logger().info("Vision node started.")
+        self.get_logger().info("Hand node started.")
 
 
     # def _hand_gesture(self):#Reconhece possiveis gestos

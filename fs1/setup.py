@@ -29,6 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             'my_node = fs1.my_node:main',
+            'hand_node = fs1.my_node:main',
             'gripper_client = fs1.gripper_client:main',
             'gripper_control = fs1.gripper_control:main',
             'joints_control = fs1.joints_control:main',
