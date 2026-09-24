@@ -1,0 +1,7 @@
+[console_scripts]
+gripper_client = fs1.gripper_client:main
+gripper_control = fs1.gripper_control:main
+joints_control = fs1.joints_control:main
+kinova_api = fs1.kinova_api:main
+my_node = fs1.my_node:main
+

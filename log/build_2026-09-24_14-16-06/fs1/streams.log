@@ -1,0 +1,66 @@
+[1.162s] Invoking command in '/app/project_ws/src/eq2_ros/fs1': PYTHONPATH=/app/project_ws/src/eq2_ros/build/fs1/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/fs1 build --build-base /app/project_ws/src/eq2_ros/build/fs1/build install --record /app/project_ws/src/eq2_ros/build/fs1/install.log --install-scripts $base/lib/fs1 --single-version-externally-managed install_data
+[1.480s] running egg_info
+[1.481s] creating ../build/fs1/fs1.egg-info
+[1.481s] writing ../build/fs1/fs1.egg-info/PKG-INFO
+[1.481s] writing dependency_links to ../build/fs1/fs1.egg-info/dependency_links.txt
+[1.481s] writing entry points to ../build/fs1/fs1.egg-info/entry_points.txt
+[1.481s] writing requirements to ../build/fs1/fs1.egg-info/requires.txt
+[1.481s] writing top-level names to ../build/fs1/fs1.egg-info/top_level.txt
+[1.481s] writing manifest file '../build/fs1/fs1.egg-info/SOURCES.txt'
+[1.483s] reading manifest file '../build/fs1/fs1.egg-info/SOURCES.txt'
+[1.483s] writing manifest file '../build/fs1/fs1.egg-info/SOURCES.txt'
+[1.483s] running build
+[1.483s] running build_py
+[1.483s] creating /app/project_ws/src/eq2_ros/build/fs1/build
+[1.483s] creating /app/project_ws/src/eq2_ros/build/fs1/build/lib
+[1.484s] creating /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/my_node.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/marker.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/servo_adapter.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/joints_control.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/__init__.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/keyboard_teleop.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/kinova_api.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/gripper_control.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/detector.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] copying fs1/gripper_client.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.484s] running install
+[1.485s] running install_lib
+[1.485s] creating /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.485s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/my_node.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.485s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/marker.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.485s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/servo_adapter.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/joints_control.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/__init__.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/keyboard_teleop.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/kinova_api.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/gripper_control.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/detector.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/gripper_client.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.486s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/my_node.py to my_node.cpython-310.pyc
+[1.487s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/marker.py to marker.cpython-310.pyc
+[1.487s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/servo_adapter.py to servo_adapter.cpython-310.pyc
+[1.488s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/joints_control.py to joints_control.cpython-310.pyc
+[1.489s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/__init__.py to __init__.cpython-310.pyc
+[1.489s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/keyboard_teleop.py to keyboard_teleop.cpython-310.pyc
+[1.489s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/kinova_api.py to kinova_api.cpython-310.pyc
+[1.490s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/gripper_control.py to gripper_control.cpython-310.pyc
+[1.490s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/detector.py to detector.cpython-310.pyc
+[1.491s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/gripper_client.py to gripper_client.cpython-310.pyc
+[1.491s] running install_data
+[1.491s] creating /app/project_ws/src/eq2_ros/install/fs1/share/ament_index
+[1.491s] creating /app/project_ws/src/eq2_ros/install/fs1/share/ament_index/resource_index
+[1.491s] creating /app/project_ws/src/eq2_ros/install/fs1/share/ament_index/resource_index/packages
+[1.492s] copying resource/fs1 -> /app/project_ws/src/eq2_ros/install/fs1/share/ament_index/resource_index/packages
+[1.492s] copying package.xml -> /app/project_ws/src/eq2_ros/install/fs1/share/fs1
+[1.492s] creating /app/project_ws/src/eq2_ros/install/fs1/share/fs1/launch
+[1.492s] running install_egg_info
+[1.499s] Copying ../build/fs1/fs1.egg-info to /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1-0.0.0-py3.10.egg-info
+[1.500s] running install_scripts
+[1.530s] Installing gripper_client script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.530s] Installing gripper_control script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.534s] Installing joints_control script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.534s] Installing kinova_api script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.535s] Installing my_node script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.535s] writing list of installed files to '/app/project_ws/src/eq2_ros/build/fs1/install.log'
+[1.645s] Invoked command in '/app/project_ws/src/eq2_ros/fs1' returned '0': PYTHONPATH=/app/project_ws/src/eq2_ros/build/fs1/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/fs1 build --build-base /app/project_ws/src/eq2_ros/build/fs1/build install --record /app/project_ws/src/eq2_ros/build/fs1/install.log --install-scripts $base/lib/fs1 --single-version-externally-managed install_data

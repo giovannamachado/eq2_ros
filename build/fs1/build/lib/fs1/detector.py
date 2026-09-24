@@ -49,8 +49,8 @@ def detect_cube_color(roi):
         ),
 
         "blue": (
-            np.array([99, 219, 101]),
-            np.array([115, 255, 255])
+            np.array([107, 219, 91]),
+            np.array([142, 255, 255])
         ),
 
         "purple": (

@@ -16,17 +16,16 @@ from fs1.detector import (
     detect_cube_color,
     create_shelf_state
 )
-import sys
-print(sys.version)
-print(sys.path)
+print(cv2.__version__)
 
 class VisionNode(Node):
 
     def __init__(self):
 
         super().__init__("vision_node")
+
         self.publisher = self.create_publisher(String, "/shelf_state", 10)
-        print(cv2.__version__)
+        
         self.camera = cv2.VideoCapture(0)
         self.detector = create_detector()
         self.frame_count = 0
@@ -83,8 +82,8 @@ class VisionNode(Node):
 
         self.publish_shelf_state(shelf_state)
 
-        #cv2.imshow("Vision Node", frame)
-        #cv2.waitKey(1)
+        cv2.imshow("Vision Node", frame)
+        cv2.waitKey(1)
 
     def publish_shelf_state(self, shelf_state):
 
