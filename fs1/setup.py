@@ -1,7 +1,6 @@
 from setuptools import find_packages, setup
 import os
 from glob import glob
-#comentario_git
 
 package_name = 'fs1'
 
