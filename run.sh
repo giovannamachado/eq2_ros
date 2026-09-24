@@ -34,7 +34,7 @@ xhost +local:docker
 
 echo "Starting container with ROS_DOMAIN_ID=${DOMAIN}..."
 docker run -d -it \
-  --name kortex_humble_3 \
+  --name kortex_humble_4 \
   --gpus all \
   --privileged \
   -e NVIDIA_DRIVER_CAPABILITIES=all \

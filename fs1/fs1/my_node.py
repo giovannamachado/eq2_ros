@@ -82,8 +82,8 @@ class VisionNode(Node):
 
         self.publish_shelf_state(shelf_state)
 
-        #cv2.imshow("Vision Node", frame)
-        #cv2.waitKey(1)
+        cv2.imshow("Vision Node", frame)
+        cv2.waitKey(1)
 
     def publish_shelf_state(self, shelf_state):
 
