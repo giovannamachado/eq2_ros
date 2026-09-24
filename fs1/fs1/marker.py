@@ -4,6 +4,7 @@ import numpy as np
 
 
 def create_detector():
+    
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
     parameters = aruco.DetectorParameters()
     detector = aruco.ArucoDetector(dictionary, parameters)
