@@ -31,8 +31,11 @@ class handDist:#classe que guarda as informações
         
     def __str__(self):
         #return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"
-        cs = [f"Finger {k:<2}: [{", ".join(f"{f"{n:.1f}":>5}" for n in v)},{self.closedFinger(k)}]" for k,v in self.finger_dists.items()]
-        return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed}){"".join(f"\n\t\t{v}" for v in cs)}"
+        cs = []
+        for k,v in self.finger_dists.items():
+             s = ", ".join(f"{round(n,1):>5}" for n in v)
+             cs.append(f"Finger {k:<2}: [{s},{self.closedFinger(k)}]")
+        return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in cs)
 #GIT/ep2_ros/mediapipe/files/hand_landmarker.task"
 
 class handDetection:
@@ -166,10 +169,12 @@ class handDetection:
     def run(self,limit = False):
         # if not isinstance(limit,int):
         #     limit = False
-        cap = cv.VideoCapture(0, cv.CAP_DSHOW)#inicio da captura
+        #cap = cv.VideoCapture(0, cv.CAP_DSHOW)#inicio da captura
+        cap = cv.VideoCapture(0)#inicio da captura
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.rez[1])#tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
         cap.set(cv.CAP_PROP_FRAME_WIDTH, self.rez[0])
-        _, self.frame = cap.read()#verifica a resolução da captura
+        ret, self.frame = cap.read()#verifica a resolução da captura
+        print(ret, self.frame )
         y,x = self.frame.shape[:2]
         self.rez = (x,y) # resolução da captura
         self.center = (int(x/2),int(y/2)) # centro da captura
