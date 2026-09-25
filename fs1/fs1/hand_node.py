@@ -11,14 +11,7 @@ from math import dist as pointDist
 import os
 
 print(cv)
-def defaut_path(base = "files/hand_landmarker.task",folder = "project_ws"):
-    
-    p1 = pathlib.Path(__file__).parent.resolve()
-    i = 0
-    if folder in str(p1.parents[i].stem):
-        while folder in str(p1.parents[i]):i-=1 
-        i+=1
-    return os.path.join(p1.parents[i],base)
+
 @dataclass
 class handDist:
     x:float #classe que guarda as informações
@@ -59,19 +52,32 @@ class handDist:
 #GIT/ep2_ros/mediapipe/files/hand_landmarker.task"
 
 class HandNode(Node):
+    def defaut_path(self,base = "files/hand_landmarker.task"):
+        p1 = pathlib.Path(__file__).parent.resolve()
+        i = 0
+        p2 = os.path.join(p1.parents[i],base)
+        while not os.path.exists(p2):
+            self.get_logger().info(f"{p1.parents[i]}")
+            
+            #print(p1.parents[i])
+            i+=1 
+            p2 = os.path.join(p1.parents[i],base)
+        #i-=1
+        return p2
     def __init__(self,#varios valores padrão
                  dead_zone_size= (160,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
                  max_zone_size= (160,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
                  frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
-                 #task_path =  defaut_path(),#caminho para o arquivo tsak do mediapipe
-                 task_path = "files/hand_landmarker.task",
+                 task_path =  None,#caminho para o arquivo tsak do mediapipe
+                 #task_path = "files/hand_landmarker.task",
                  confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
                  limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
                  frame_jump = 2,
                  print_mode = False,
                  cross_mode = False):#O modo de exibição das zonas da imagem
         super().__init__("hand_node")
-
+        if task_path == None:
+            task_path = self.defaut_path()
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
         self.frame_jump = False if not frame_height or frame_jump<=1 else frame_jump-1
         self._running = False
