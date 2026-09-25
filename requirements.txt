@@ -1,0 +1,11 @@
+ament_copyright==0.12.15
+ament_flake8==0.12.15
+ament_pep257==0.12.15
+mediapipe==1.0.1
+numpy==2.5.3
+opencv_contrib_python==5.0.0.93
+opencv_python==5.0.0.93
+pytest==9.1.1
+rclpy==3.3.21
+setuptools==84.0.0
+std_msgs==4.9.2

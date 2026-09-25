@@ -18,7 +18,7 @@ from fs1.detector import (
     detect_cube_color,
     create_shelf_state
 )
-
+print(cv2)
 
 class VisionNode(Node):
 

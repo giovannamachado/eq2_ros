@@ -1,0 +1,28 @@
+[project]
+name = "eq2-ros"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Lucas Tenorio",email = "ltf@softex.cin.ufpe.br"}
+]
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "pytest (>=9.1.1,<10.0.0)",
+    "opencv-python>=5.0.0.93",
+    "numpy>=2.5.1",
+    "mediapipe>=1.0.1",
+    "pytest-cov (>=7.1.0,<8.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "eq2_ros", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "pytest (>=9.1.1,<10.0.0)"
+]
