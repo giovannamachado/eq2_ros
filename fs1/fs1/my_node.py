@@ -73,7 +73,6 @@ class VisionNode(Node):
 
             return
 
-        # Publica a imagem da câmera
         image_msg = self.bridge.cv2_to_imgmsg(
             frame,
             encoding="bgr8"
