@@ -68,12 +68,13 @@ class HandNode(Node):
     def __init__(self,#varios valores padrão
                  dead_zone_size= (160,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
                  max_zone_size= (160,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
-                 frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
+                 #frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
+                 frame_width = 960,frame_height = 540,#resolução desejada (no coumputador testado ele transforma em 720x1280)
                  task_path =  None,#caminho para o arquivo tsak do mediapipe
                  #task_path = "files/hand_landmarker.task",
                  confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
                  limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
-                 frame_jump = 2,
+                 frame_jump = False,
                  print_mode = False,
                  cross_mode = False):#O modo de exibição das zonas da imagem
         super().__init__("hand_node")
@@ -231,6 +232,7 @@ class HandNode(Node):
         _, self.frame = cap.read()
         y,x = self.frame.shape[:2]
         self.rez = (x,y)
+        self.get_logger().info(f"REZ: {self.rez}")
         # centro da captura
         self.center = (int(x/2),int(y/2))
         self.hand_center = (-x,-y) #centro da mão
