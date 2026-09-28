@@ -32,7 +32,7 @@ class CamTeleop(Node):
         super().__init__('keyboard_teleop')
         self.subscriber_cam_node = self.create_subscription(String, '/hand_status', self.recebi_mensagem,10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.speed = 2.0
+        self.speed = 1.0
         self.target_y = 0.0
         self.target_z = 0.0
 
