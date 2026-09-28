@@ -23,11 +23,13 @@ def test_detect_marker():
         aruco.DICT_4X4_50
     )
 
-    marker = aruco.generateImageMarker(
-        dictionary,
-        0,
-        100
-    )
+    # generateImageMarker só existe no OpenCV >= 4.7; a imagem
+    # kortex_humble traz o 4.5.4, então caímos para o drawMarker legado
+    # (mesmo recurso que create_detector usa em fs1/marker.py).
+    if hasattr(aruco, 'generateImageMarker'):
+        marker = aruco.generateImageMarker(dictionary, 0, 100)
+    else:
+        marker = aruco.drawMarker(dictionary, 0, 100)
 
     frame = np.full(
         (200, 200),
