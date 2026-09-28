@@ -23,15 +23,14 @@ def generate_launch_description():
     )
 
     # Node que lê os comandos do teclado e publica mensagens de controle
-    keyboard_teleop_node = Node(
+    cam_teleop_node = Node(
         package=pkg_name,
-        executable='keyboard_teleop',
-        name='keyboard_teleop',
-        output='screen',
-        prefix='xterm -title "KORTEX KEYBOARD TELEOP" -geometry 60x20 -hold -e'
+        executable='CamTeleop',
+        name='CamTeleop',
+        output='screen'
     )
 
     return LaunchDescription([
         servo_adapter_node,
-        keyboard_teleop_node
+        cam_teleop_node
     ])
