@@ -26,6 +26,13 @@ class VisionNode(Node):
 
         super().__init__("vision_node")
 
+        # Janelas de depuração (cv2.imshow) desligadas por padrão: abrem uma
+        # janela nativa na tela de quem estiver rodando o container com
+        # DISPLAY configurado, o que atrapalha quem só quer ver o front-end.
+        # Ligue com: ros2 run fs1 my_node --ros-args -p debug_windows:=true
+        self.declare_parameter('debug_windows', False)
+        self.debug_windows = self.get_parameter('debug_windows').value
+
         self.publisher = self.create_publisher(
             String,
             "/shelf_state",
@@ -132,10 +139,11 @@ class VisionNode(Node):
                         position - 1
                     ]["color"] = color
 
-                cv2.imshow(
-                     f"Cube ROI {marker_id}",
-                     roi_image
-                )
+                if self.debug_windows:
+                    cv2.imshow(
+                         f"Cube ROI {marker_id}",
+                         roi_image
+                    )
 
             cv2.circle(
                 frame,
@@ -165,8 +173,9 @@ class VisionNode(Node):
             shelf_state
         )
 
-        cv2.imshow("Vision Node", frame)
-        cv2.waitKey(1)
+        if self.debug_windows:
+            cv2.imshow("Vision Node", frame)
+            cv2.waitKey(1)
 
     def publish_shelf_state(
         self,
