@@ -33,7 +33,7 @@ builtin-interfaces==1.2.3
 camera-calibration==3.0.9
 catkin-pkg==1.1.1
 catkin-pkg-modules==1.1.1
-cbor2==5.4.2
+#cbor2==5.4.2
 certifi==2020.6.20
 cffi==2.1.1
 chardet==4.0.0
@@ -147,7 +147,7 @@ mpmath==0.0.0
 nav-msgs==4.9.2
 netifaces==0.11.0
 notify2==0.3
-numpy==1.26.4
+
 oauthlib==3.2.0
 object-recognition-msgs==2.0.0
 octomap-msgs==2.0.1
@@ -317,3 +317,4 @@ wadllib==1.3.6
 wrapt==1.13.3
 xacro==2.1.1
 zipp==1.0.0
+#pip install --force "numpy<2"
