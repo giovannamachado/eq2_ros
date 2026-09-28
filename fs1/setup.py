@@ -31,7 +31,8 @@ setup(
             'gripper_client = fs1.gripper_client:main',
             'gripper_control = fs1.gripper_control:main',
             'joints_control = fs1.joints_control:main',
-            'kinova_api = fs1.kinova_api:main'
+            'kinova_api = fs1.kinova_api:main',
+            'supervisor = fs1.supervisor:main',
         ],
     },
 )
