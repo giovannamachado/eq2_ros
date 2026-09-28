@@ -25,8 +25,8 @@ def generate_launch_description():
     # Node que lê os comandos do teclado e publica mensagens de controle
     cam_teleop_node = Node(
         package=pkg_name,
-        executable='CamTeleop',
-        name='CamTeleop',
+        executable='CamTeleop',#CamTeleop
+        name='CamTeleop',#CamTeleop
         output='screen'
     )
 
