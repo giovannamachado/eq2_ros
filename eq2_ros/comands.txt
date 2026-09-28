@@ -1,3 +1,0 @@
-Test
-poetry add pytest --group dev 
-poetry run pytest --cov=. --cov-report=term-missing

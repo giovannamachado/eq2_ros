@@ -87,7 +87,7 @@ class HandNode(Node):
 
         self.mzone = (max_zone_size[0]/2,max_zone_size[1]/2) if isinstance(max_zone_size,tuple) else (max_zone_size/2,max_zone_size/2)#sempre usa metade do numero entregue
         self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2) if isinstance(dead_zone_size,tuple) else (dead_zone_size/2,dead_zone_size/2)
-        self.rez = (frame_width,frame_height) # temporario
+        self.rez = (frame_width,frame_height) # usado na criação da captura, é subistituido pela resolução resultante caso ela seja diferente
         self.center = (limit,limit) # temporario
         self.hand_center = (limit-1,limit-1) #temporario
 
@@ -147,8 +147,7 @@ class HandNode(Node):
 
     def switch_running(self,msg):
         param = json.loads(msg.data)
-        if "frame_jump" in param: 
-            self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
+        if "frame_jump" in param: self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
         if "dzone" in param:
             dead_zone_size = param["dzone"]
             if isinstance(dead_zone_size,list) or isinstance(dead_zone_size,tuple): self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2)
@@ -184,12 +183,11 @@ class HandNode(Node):
         my = int(self.mzone[1])
         (cx,cy) = self.center#centro da tela
         rx,ry = self.rez
-        if self.cross_mode:#usa retangulos para desenhar linhas que começão e terminam fora da imagem
-            duos = [((cx+zx,-10),(cx-zx,ry+4),(0,0,0)),((-10,zy+cy),(rx+10,cy-zy),(0,0,0)),#zona morta
-                    ((mx,-10),(rx-mx,ry+4),(255,255,255)),((-10,my),(rx+10,ry-my),(255,255,255))]#zona maxima
-        else: 
-            duos = [((cx+zx,zy+cy),(cx-zx,cy-zy),(0,0,0)),#zona morta
-                    ((mx,my),(rx-mx,ry-my),(255,255,255))]#zona maxima
+        #usa retangulos para desenhar linhas que começão e terminam fora da imagem
+        if self.cross_mode: duos = [((cx+zx,-10),(cx-zx,ry+4),(0,0,0)),((-10,zy+cy),(rx+10,cy-zy),(0,0,0)),#zona morta
+                                    ((mx,-10),(rx-mx,ry+4),(255,255,255)),((-10,my),(rx+10,ry-my),(255,255,255))]#zona maxima
+        else: duos = [((cx+zx,zy+cy),(cx-zx,cy-zy),(0,0,0)),#zona morta
+                        ((mx,my),(rx-mx,ry-my),(255,255,255))]#zona maxima
         self._doublePoint((cx,cy),(255,255,255),(0,0,0))#ponto central da tela
         for p1,p2,color in duos:#Cria os retangulos
             cv.rectangle(self.frame,pt1=p1,pt2=p2,color=color,thickness=3)
