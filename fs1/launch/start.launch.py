@@ -31,4 +31,10 @@ def generate_launch_description():
            name='kinova_api',
            output='screen',
        ),
+       Node(
+           package=pkg,
+           executable='my_node',
+           name='my_node',
+           output='screen',
+       ),
    ])

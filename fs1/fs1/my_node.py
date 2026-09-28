@@ -18,7 +18,7 @@ from fs1.detector import (
     detect_cube_color,
     create_shelf_state
 )
-
+print(cv2)
 
 class VisionNode(Node):
 
@@ -73,7 +73,6 @@ class VisionNode(Node):
 
             return
 
-        # Publica a imagem da câmera
         image_msg = self.bridge.cv2_to_imgmsg(
             frame,
             encoding="bgr8"

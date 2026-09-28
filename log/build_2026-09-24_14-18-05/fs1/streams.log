@@ -1,0 +1,28 @@
+[0.802s] Invoking command in '/app/project_ws/src/eq2_ros/fs1': PYTHONPATH=/app/project_ws/src/eq2_ros/build/fs1/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/fs1 build --build-base /app/project_ws/src/eq2_ros/build/fs1/build install --record /app/project_ws/src/eq2_ros/build/fs1/install.log --install-scripts $base/lib/fs1 --single-version-externally-managed install_data
+[1.072s] running egg_info
+[1.073s] writing ../build/fs1/fs1.egg-info/PKG-INFO
+[1.073s] writing dependency_links to ../build/fs1/fs1.egg-info/dependency_links.txt
+[1.073s] writing entry points to ../build/fs1/fs1.egg-info/entry_points.txt
+[1.073s] writing requirements to ../build/fs1/fs1.egg-info/requires.txt
+[1.073s] writing top-level names to ../build/fs1/fs1.egg-info/top_level.txt
+[1.075s] reading manifest file '../build/fs1/fs1.egg-info/SOURCES.txt'
+[1.076s] writing manifest file '../build/fs1/fs1.egg-info/SOURCES.txt'
+[1.076s] running build
+[1.076s] running build_py
+[1.076s] copying fs1/my_node.py -> /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1
+[1.077s] running install
+[1.077s] running install_lib
+[1.078s] copying /app/project_ws/src/eq2_ros/build/fs1/build/lib/fs1/my_node.py -> /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1
+[1.078s] byte-compiling /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1/my_node.py to my_node.cpython-310.pyc
+[1.079s] running install_data
+[1.079s] running install_egg_info
+[1.081s] removing '/app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1-0.0.0-py3.10.egg-info' (and everything under it)
+[1.082s] Copying ../build/fs1/fs1.egg-info to /app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages/fs1-0.0.0-py3.10.egg-info
+[1.082s] running install_scripts
+[1.104s] Installing gripper_client script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.104s] Installing gripper_control script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.104s] Installing joints_control script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.104s] Installing kinova_api script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.104s] Installing my_node script to /app/project_ws/src/eq2_ros/install/fs1/lib/fs1
+[1.104s] writing list of installed files to '/app/project_ws/src/eq2_ros/build/fs1/install.log'
+[1.121s] Invoked command in '/app/project_ws/src/eq2_ros/fs1' returned '0': PYTHONPATH=/app/project_ws/src/eq2_ros/build/fs1/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/app/project_ws/src/eq2_ros/install/fs1/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../build/fs1 build --build-base /app/project_ws/src/eq2_ros/build/fs1/build install --record /app/project_ws/src/eq2_ros/build/fs1/install.log --install-scripts $base/lib/fs1 --single-version-externally-managed install_data

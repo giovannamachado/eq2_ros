@@ -12,7 +12,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     """Generates the launch description containing both nodes."""
     
-    pkg_name = 'kortex_servo'
+    pkg_name = 'fs1'
 
     # Node que traduz os comandos do teclado para mensagens de controle do robô
     servo_adapter_node = Node(
