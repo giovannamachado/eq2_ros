@@ -74,7 +74,7 @@ class HandNode(Node):
                  #task_path = "files/hand_landmarker.task",
                  confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
                  limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
-                 frame_jump = False,
+                 frame_jump = 0,
                  print_mode = False,
                  cross_mode = False):#O modo de exibição das zonas da imagem
         super().__init__("hand_node")
