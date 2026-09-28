@@ -47,7 +47,7 @@ class KinovaApi(Node):
 
     def pick_one_cube(self):
         time.sleep(2)
-        cubo = 1
+        cubo = 3
         msg_junta = String()
         msg_junta.data=json.dumps(cubos[cubo])
         self.publisher_controlador_juntas.publish(msg_junta)

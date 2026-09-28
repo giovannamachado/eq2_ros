@@ -1,1 +1,1 @@
-rclpy:std_msgs
+compressed_image_transport:image_transport:rclpy:rosbridge_server:std_msgs

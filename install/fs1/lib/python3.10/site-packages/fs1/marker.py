@@ -4,11 +4,21 @@ import numpy as np
 
 
 def create_detector():
-    dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-    parameters = aruco.DetectorParameters()
-    detector = aruco.ArucoDetector(dictionary, parameters)
+    """
+    Create the ArUco detector (DICT_4X4_50).
 
-    return detector
+    OpenCV >= 4.7 exposes ``ArucoDetector``; older versions (4.5.x, as in the
+    kortex_humble image) only have the legacy functions. In that case a
+    ``(dictionary, parameters)`` tuple is returned and ``detect_markers``
+    uses the legacy call, so both versions produce the same result.
+    """
+    dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+
+    if hasattr(aruco, "ArucoDetector"):
+        parameters = aruco.DetectorParameters()
+        return aruco.ArucoDetector(dictionary, parameters)
+
+    return dictionary, aruco.DetectorParameters_create()
 
 
 def detect_markers(detector, frame):
@@ -18,7 +28,12 @@ def detect_markers(detector, frame):
         cv2.COLOR_BGR2GRAY
     )
 
-    corners, ids, rejected = detector.detectMarkers(gray)
+    if isinstance(detector, tuple):
+        dictionary, parameters = detector
+        corners, ids, rejected = aruco.detectMarkers(
+            gray, dictionary, parameters=parameters)
+    else:
+        corners, ids, rejected = detector.detectMarkers(gray)
 
     marker_to_slot = {
         0: 1,
@@ -67,6 +82,11 @@ def detect_markers(detector, frame):
             )
 
             slot = marker_to_slot.get(marker_id)
+
+            # Ids outside the shelf (0..7) are not slots: ignore them
+            # instead of letting the vision node crash on position=None.
+            if slot is None:
+                continue
 
             markers[marker_id] = {
                 "corners": marker_corners,
