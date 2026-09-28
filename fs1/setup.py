@@ -36,7 +36,8 @@ setup(
             'kinova_api = fs1.kinova_api:main',
             'supervisor = fs1.supervisor:main',
             'servo_adapter = fs1.servo_adapter:main',
-            'keyboard_teleop = fs1.keyboard_teleop:main'
+            'keyboard_teleop = fs1.keyboard_teleop:main',
+            'othrer_node = fs1.othrer_node:main'
         ],
     },
 )

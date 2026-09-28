@@ -10,6 +10,8 @@ import numpy as np
 from math import dist as pointDist
 import os
 
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 print(cv)
 
 @dataclass
@@ -81,10 +83,13 @@ class HandNode(Node):
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
         self.frame_jump = False if not frame_height or frame_jump<=1 else frame_jump-1
         self._running = False
+
         self.print_mode = print_mode
         self.cross_mode = cross_mode
+
         self.mzone = (max_zone_size[0]/2,max_zone_size[1]/2) if isinstance(max_zone_size,tuple) else (max_zone_size/2,max_zone_size/2)#sempre usa metade do numero entregue
         self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2) if isinstance(dead_zone_size,tuple) else (dead_zone_size/2,dead_zone_size/2)
+        
         self.rez = (frame_width,frame_height) # temporario
         self.center = (limit,limit) # temporario
         self.hand_center = (limit-1,limit-1) #temporario
@@ -95,9 +100,11 @@ class HandNode(Node):
             base_options=mp.tasks.BaseOptions(model_asset_path=task_path), min_hand_presence_confidence = confidence["presence"],
             min_hand_detection_confidence= confidence["detection"],  
             min_tracking_confidence= confidence["traking"], running_mode=mp.tasks.vision.RunningMode.IMAGE, num_hands=1, )
-        
+        self.bridge = CvBridge()
         self.detector = mp.tasks.vision.HandLandmarker.create_from_options(options) #detector
+        
         self.send_hand = self.create_publisher(String,"/hand_status",10)
+        self.send_img = self.create_publisher(Image,"/camera/hand/image",10)
         self.stater_stopper = self.create_subscription(String,"/switchHandDetection",self.switch_running,10)
         self.get_logger().info("Hand node started.")
 
@@ -218,6 +225,8 @@ class HandNode(Node):
                 frame_counter+=1
                 if self.frame_jump == frame_counter: frame_counter=0
                 else: continue
+            image_msg = self.bridge.cv2_to_imgmsg(frame,encoding="bgr8")
+            self.send_img.publish(image_msg)
             self.frame = cv.flip(frame,1)
             frame_RGB = mp.Image(mp.ImageFormat.SRGB,cv.cvtColor(self.frame,cv.COLOR_BGR2RGB))
             detected = self.detector.detect(frame_RGB)#resultado da detecção
