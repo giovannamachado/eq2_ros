@@ -32,7 +32,7 @@ class TestNode(Node):
         self.get_logger().info("reciving")
         self.get_logger().info(json.dumps(d,indent=0))
     def activate_handNode(self):
-        d = {"frame_jump":2 }
+        d = {"frame_jump":0 }
         msg =String()
         msg.data = json.dumps(d)
         self.publisher.publish(msg)

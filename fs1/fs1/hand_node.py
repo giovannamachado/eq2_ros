@@ -145,7 +145,8 @@ class HandNode(Node):
 
     def switch_running(self,msg):
         param = json.loads(msg.data)
-        if "frame_jump" in param: self.frame_jump = param["frame_jump"]
+        if "frame_jump" in param: 
+            self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
         self._running = not self._running
         if self._running:
             if "limit" in param: self.run(limit=param["limit"])
