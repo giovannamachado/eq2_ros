@@ -132,10 +132,10 @@ class VisionNode(Node):
                         position - 1
                     ]["color"] = color
 
-                # cv2.imshow(
-                #     f"Cube ROI {marker_id}",
-                #     roi_image
-                # )
+                cv2.imshow(
+                     f"Cube ROI {marker_id}",
+                     roi_image
+                )
 
             cv2.circle(
                 frame,
@@ -165,8 +165,8 @@ class VisionNode(Node):
             shelf_state
         )
 
-        # cv2.imshow("Vision Node", frame)
-        # cv2.waitKey(1)
+        cv2.imshow("Vision Node", frame)
+        cv2.waitKey(1)
 
     def publish_shelf_state(
         self,

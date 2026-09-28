@@ -6,6 +6,7 @@ JOINT_JOG, executing a trajectory, and then enabling TWIST mode) to ensure
 safe teleoperation.
 """
 
+import math
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TwistStamped, Twist
@@ -78,6 +79,11 @@ class ServoAdapter(Node):
         Step 2: Triggered when the robot successfully enters JOINT_JOG mode.
         Publishes the initial trajectory and starts a timer to wait for its completion.
         """
+        def conversor_graus_radianos(lista):
+            resultado = []
+            for valor in lista:
+                resultado.append(math.radians(valor))
+            return resultado
         try:
             future.result()
             self.get_logger().info('Switched to JOINT_JOG. Sending initial trajectory...')
@@ -86,10 +92,11 @@ class ServoAdapter(Node):
             msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
             
             point = JointTrajectoryPoint()
-            point.positions = [0.1, 0.1, 1.5, 0.01, 0.5, 0.01] 
+            posicoes = conversor_graus_radianos([-19.0, 2.0, 131.0, 61.0, -44.0, -68.0])
+            point.positions = posicoes
             
             duration = Duration()
-            duration.sec = 3
+            duration.sec = 5
             duration.nanosec = 0
             point.time_from_start = duration
             
@@ -98,7 +105,7 @@ class ServoAdapter(Node):
             
             # Wait 3.5 seconds for the physical robot to reach the position
             self.get_logger().info('Waiting 3.5s for the trajectory to complete...')
-            self.trajectory_wait_timer = self.create_timer(3.5, self.request_twist_mode)
+            self.trajectory_wait_timer = self.create_timer(6, self.request_twist_mode)
             
         except Exception as e:
             self.get_logger().error(f'Failed to switch to JOINT_JOG: {e}')

@@ -36,8 +36,8 @@ def test_calculate_cube_roi():
     x_min, y_min, x_max, y_max = roi
 
     assert x_min == 80
-    assert y_min == 120
     assert x_max == 120
+    assert y_min == 120
     assert y_max == 160
 
 
