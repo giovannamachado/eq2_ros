@@ -58,4 +58,21 @@ def generate_launch_description():
                 ('out/compressed', '/camera/effector/image_raw/compressed'),
             ],
         ),
+
+        # /camera/operator/image_raw (raw, from hand_node) -> JPEG for the
+        # Flutter app. hand_node itself is NOT launched here: it needs
+        # mediapipe, which this image does not ship (see eq2_ros/reademe.md
+        # for how to run it manually with the dev venv). This republisher
+        # is harmless to leave running even when hand_node is off: it just
+        # sits idle until something publishes to its input topic.
+        Node(
+            package='image_transport',
+            executable='republish',
+            name='operator_camera_jpeg',
+            arguments=['raw', 'compressed'],
+            remappings=[
+                ('in', '/camera/operator/image_raw'),
+                ('out/compressed', '/camera/operator/image_raw/compressed'),
+            ],
+        ),
     ])

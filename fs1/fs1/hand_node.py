@@ -4,6 +4,7 @@ import pathlib
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+from sensor_msgs.msg import Image
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -99,7 +100,18 @@ class HandNode(Node):
         self.detector = mp.tasks.vision.HandLandmarker.create_from_options(options) #detector
         self.send_hand = self.create_publisher(String,"/hand_status",10)
         self.stater_stopper = self.create_subscription(String,"/switchHandDetection",self.switch_running,10)
+        #publica a imagem da câmera do operador para o front-end (ver frontend.launch.py)
+        self.image_pub = self.create_publisher(Image,"/camera/operator/image_raw",10)
         self.get_logger().info("Hand node started.")
+
+    def _publish_frame(self):#monta a mensagem Image sem cv_bridge (evita depender dele aqui)
+        msg = Image()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.height, msg.width = self.frame.shape[:2]
+        msg.encoding = "bgr8"
+        msg.step = self.frame.shape[1]*3
+        msg.data = self.frame.tobytes()
+        self.image_pub.publish(msg)
 
     def _hand_dists(self):#detecta se a mão aparenta estar fechada
         if hasattr(self,"hand_points"):
@@ -231,6 +243,7 @@ class HandNode(Node):
                 box =  cv.boxPoints(r) #pontos da caixa
                 self._drawHandAndBox(box.astype(np.int64),handSwitch[detected.handedness[0][0].index],"Main Hand Stats:")
             cv.imshow('Webcam', self.frame)#mostra a imagem capturada com as alterações feitas
+            self._publish_frame()#publica o mesmo quadro (com as zonas/mão desenhadas) para o front-end
             #self.send_hand_data()
             if limit: 
                 print(f"limit {counter}")
