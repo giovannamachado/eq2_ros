@@ -68,12 +68,13 @@ class HandNode(Node):
     def __init__(self,#varios valores padrão
                  dead_zone_size= (160,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
                  max_zone_size= (160,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
-                 frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
+                 #frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
+                 frame_width = 960,frame_height = 540,#resolução desejada (no coumputador testado ele transforma em 720x1280)
                  task_path =  None,#caminho para o arquivo tsak do mediapipe
                  #task_path = "files/hand_landmarker.task",
                  confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
                  limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
-                 frame_jump = 2,
+                 frame_jump = 0,
                  print_mode = False,
                  cross_mode = False):#O modo de exibição das zonas da imagem
         super().__init__("hand_node")
@@ -83,18 +84,19 @@ class HandNode(Node):
         # editar o código.
         self.declare_parameter('camera_index', 0)
         self.camera_index = self.get_parameter('camera_index').value
-        if task_path == None:
-            task_path = self.defaut_path()
+        if task_path == None: task_path = self.defaut_path()
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
         self.frame_jump = False if not frame_height or frame_jump<=1 else frame_jump-1
         self._running = False
         self.print_mode = print_mode
         self.cross_mode = cross_mode
+
         self.mzone = (max_zone_size[0]/2,max_zone_size[1]/2) if isinstance(max_zone_size,tuple) else (max_zone_size/2,max_zone_size/2)#sempre usa metade do numero entregue
         self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2) if isinstance(dead_zone_size,tuple) else (dead_zone_size/2,dead_zone_size/2)
-        self.rez = (frame_width,frame_height) # temporario
+        self.rez = (frame_width,frame_height) # usado na criação da captura, é subistituido pela resolução resultante caso ela seja diferente
         self.center = (limit,limit) # temporario
         self.hand_center = (limit-1,limit-1) #temporario
+
         self.duos = [(0,1),(0,5),(0,17),(5,9),(9,13),(13,17)]#duplas de pontos para desenhar linhas em um metodo
         self.duos +=[(v+i-1,v+i) for v in set([vl[1] for vl in self.duos]) for i in range(1,4) if v!=0]+[(2,5)]
         #opçoes do detector
@@ -102,8 +104,8 @@ class HandNode(Node):
             base_options=mp.tasks.BaseOptions(model_asset_path=task_path), min_hand_presence_confidence = confidence["presence"],
             min_hand_detection_confidence= confidence["detection"],  
             min_tracking_confidence= confidence["traking"], running_mode=mp.tasks.vision.RunningMode.IMAGE, num_hands=1, )
-        
         self.detector = mp.tasks.vision.HandLandmarker.create_from_options(options) #detector
+
         self.send_hand = self.create_publisher(String,"/hand_status",10)
         self.stater_stopper = self.create_subscription(String,"/switchHandDetection",self.switch_running,10)
         #publica a imagem da câmera do operador para o front-end (ver frontend.launch.py)
@@ -151,7 +153,15 @@ class HandNode(Node):
 
     def switch_running(self,msg):
         param = json.loads(msg.data)
-        if "frame_jump" in param: self.frame_jump = param["frame_jump"]
+        if "frame_jump" in param: self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
+        if "dzone" in param:
+            dead_zone_size = param["dzone"]
+            if isinstance(dead_zone_size,list) or isinstance(dead_zone_size,tuple): self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2)
+            else: self.dzone = (dead_zone_size/2,dead_zone_size/2)
+        if "mzone" in param:
+            m_zone_size = param["mzone"]
+            if isinstance(m_zone_size,list) or isinstance(m_zone_size,tuple): self.dzone = (m_zone_size[0]/2,m_zone_size[1]/2)
+            else: self.mzone = (m_zone_size/2,m_zone_size/2)
         self._running = not self._running
         if self._running:
             if "limit" in param: self.run(limit=param["limit"])
@@ -179,15 +189,19 @@ class HandNode(Node):
         my = int(self.mzone[1])
         (cx,cy) = self.center#centro da tela
         rx,ry = self.rez
-        if self.cross_mode:#usa retangulos para desenhar linhas que começão e terminam fora da imagem
-            duos = [((cx+zx,-10),(cx-zx,ry+4),(0,0,0)),((-10,zy+cy),(rx+10,cy-zy),(0,0,0)),#zona morta
-                    ((mx,-10),(rx-mx,ry+4),(255,255,255)),((-10,my),(rx+10,ry-my),(255,255,255))]#zona maxima
-        else: 
-            duos = [((cx+zx,zy+cy),(cx-zx,cy-zy),(0,0,0)),#zona morta
-                    ((mx,my),(rx-mx,ry-my),(255,255,255))]#zona maxima
+        #usa retangulos para desenhar linhas que começão e terminam fora da imagem
+        if self.cross_mode: duos = [((cx+zx,-10),(cx-zx,ry+4),(0,0,0)),((-10,zy+cy),(rx+10,cy-zy),(0,0,0)),#zona morta
+                                    ((mx,-10),(rx-mx,ry+4),(255,255,255)),((-10,my),(rx+10,ry-my),(255,255,255))]#zona maxima
+        else: duos = [((cx+zx,zy+cy),(cx-zx,cy-zy),(0,0,0)),#zona morta
+                        ((mx,my),(rx-mx,ry-my),(255,255,255))]#zona maxima
         self._doublePoint((cx,cy),(255,255,255),(0,0,0))#ponto central da tela
         for p1,p2,color in duos:#Cria os retangulos
             cv.rectangle(self.frame,pt1=p1,pt2=p2,color=color,thickness=3)
+
+    def sendSTOP(self):
+        msg = String()
+        msg.data = json.dumps({"STOP":True})
+        self.send_hand.publish(msg)
 
     def _drawHandAndBox(self,box,cat,id): # publica o estado da mão
         dist = self.hand_dist
@@ -222,11 +236,13 @@ class HandNode(Node):
         _, self.frame = cap.read()
         y,x = self.frame.shape[:2]
         self.rez = (x,y)
+        self.get_logger().info(f"REZ: {self.rez}")
         # centro da captura
         self.center = (int(x/2),int(y/2))
         self.hand_center = (-x,-y) #centro da mão
         handSwitch = {0:'Left',1:'Right'}#corrige o lado das mãos
         self._running = True
+        hand_detected_in_prev = False
         if self.frame_jump: frame_counter = 0
         if limit: counter = 0
         while self._running:
@@ -243,11 +259,16 @@ class HandNode(Node):
             self._drawnZones()#desenha a zona morta
 
             if size>0:#ignora se nenuma mão for detectada
+                hand_detected_in_prev = True
                 self.hand_points = [(int(l.x*x),int(l.y*y)) for l in detected.hand_landmarks[0]]#pontos da mão
                 r = cv.minAreaRect(np.array([self.hand_points]))# pega os pontos da  e centro da mão
                 self.hand_center = r[0]#centro da mão
                 box =  cv.boxPoints(r) #pontos da caixa
                 self._drawHandAndBox(box.astype(np.int64),handSwitch[detected.handedness[0][0].index],"Main Hand Stats:")
+            else:
+                if hand_detected_in_prev: self.sendSTOP()
+                hand_detected_in_prev = False
+                
             cv.imshow('Webcam', self.frame)#mostra a imagem capturada com as alterações feitas
             self._publish_frame()#publica o mesmo quadro (com as zonas/mão desenhadas) para o front-end
             #self.send_hand_data()

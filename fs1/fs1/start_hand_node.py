@@ -18,11 +18,11 @@ from fs1.detector import (
 )
 print(cv2)
 
-class TestNode(Node):
+class StartHandNode(Node):
 
     def __init__(self):
 
-        super().__init__("test_node")
+        super().__init__("start_hand_node")
         self.test_status = self.create_subscription(String,"/hand_status",self.hand_status,10)
         self.publisher = self.create_publisher(String, "/switchHandDetection", 10)
         self.get_logger().info("Test node started.")
@@ -32,7 +32,7 @@ class TestNode(Node):
         self.get_logger().info("reciving")
         self.get_logger().info(json.dumps(d,indent=0))
     def activate_handNode(self):
-        d = {"frame_jump":2 }
+        d = {"frame_jump":0 }
         msg =String()
         msg.data = json.dumps(d)
         self.publisher.publish(msg)
@@ -41,7 +41,7 @@ class TestNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = TestNode()
+    node = StartHandNode()
 
     try:
         rclpy.spin(node)
