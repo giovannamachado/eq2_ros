@@ -1,3 +1,5 @@
+"""Converts joint-angle lists (degrees) into JointTrajectory commands."""
+
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import rclpy
 from rclpy.node import Node
@@ -12,14 +14,17 @@ import time
 #  e faça o inverso (json.loads()) ao receber.
     
 def conversor_graus_radianos(lista):
+    """Convert a list of angles in degrees to radians, same order."""
     resultado = []
     for valor in lista:
         resultado.append(math.radians(valor))
     return resultado
 
 class SensorNode(Node):
-    def __init__(self):
+    """Bridges ``/posicoes_garra`` (JSON degrees) to the joint trajectory controller."""
 
+    def __init__(self):
+        """Set up the trajectory publisher and the ``/posicoes_garra`` subscriber."""
         super().__init__('transmissor_de_posicoes')
         self.get_logger().info('transmissor de posicoes esta ligado')      
         
@@ -37,6 +42,7 @@ class SensorNode(Node):
         #self.enviar_posicao()
                             #equivalente a mensagem
     def comando_garra(self, recebida):
+        """Publish ``recebida`` (JSON list of 6 angles, degrees) as a 5 s trajectory."""
         msg = JointTrajectory()
         msg.joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
         lista_graus = json.loads(recebida.data)
@@ -49,6 +55,7 @@ class SensorNode(Node):
 
     
 def main(args=None):
+   """Entry point for the joint-trajectory bridge node."""
    rclpy.init(args=args)
    sensor_node = SensorNode()
    rclpy.spin(sensor_node)

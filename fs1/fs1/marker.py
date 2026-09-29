@@ -1,3 +1,5 @@
+"""ArUco marker detection for the shelf slots (ids 0..7 -> slots 1..8)."""
+
 import cv2
 import cv2.aruco as aruco
 import numpy as np
@@ -22,7 +24,18 @@ def create_detector():
 
 
 def detect_markers(detector, frame):
+    """
+    Find the shelf's ArUco markers in a frame and map each to its slot.
 
+    Args:
+        detector: value returned by ``create_detector()``.
+        frame: BGR image to scan.
+
+    Returns:
+        dict keyed by marker id, each value ``{"corners", "position",
+        "center", "size_px"}``. Ids outside 0..7 (not a shelf slot) are
+        left out.
+    """
     gray = cv2.cvtColor(
         frame,
         cv2.COLOR_BGR2GRAY

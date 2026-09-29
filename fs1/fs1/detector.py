@@ -1,3 +1,11 @@
+"""
+Cube ROI geometry and color classification for the shelf slots.
+
+Given a detected ArUco marker (see ``fs1.marker``), this module locates the
+cube that sits above it in the camera image and classifies its color, so
+``fs1.my_node`` can report which shelf slots are occupied and with what.
+"""
+
 import cv2
 import numpy as np
 
@@ -9,7 +17,20 @@ ROI_MARGIN_CM = 0.5
 
 
 def calculate_cube_roi(marker_center, marker_size_px):
+    """
+    Find the pixel region where the cube above a marker should be.
 
+    Uses the marker's own pixel size to convert the known real-world
+    distance and cube size (``CUBE_DISTANCE_CM``, ``CUBE_SIZE_CM``) into
+    pixels, so it works at any camera distance/zoom.
+
+    Args:
+        marker_center: ``(x, y)`` pixel coordinates of the marker's center.
+        marker_size_px: the marker's width in pixels, as detected.
+
+    Returns:
+        A tuple ``(cube_center, (x_min, y_min, x_max, y_max))``.
+    """
     pixels_per_cm = (marker_size_px / ARUCO_SIZE_CM)
 
     distance_px = (pixels_per_cm * CUBE_DISTANCE_CM)
@@ -38,7 +59,21 @@ def calculate_cube_roi(marker_center, marker_size_px):
 
 
 def detect_cube_color(roi):
+    """
+    Classify the dominant piece color inside a cube's ROI image.
 
+    Converts to HSV and measures how much of the ROI falls inside each
+    known color range (green/blue/purple/white). The color with the
+    highest percentage wins; if even the best match covers less than 15%
+    of the ROI, the slot is treated as empty (``None``).
+
+    Args:
+        roi: BGR image crop of the cube's region (from
+            ``calculate_cube_roi``).
+
+    Returns:
+        A tuple ``(color_name_or_None, percentages_by_color)``.
+    """
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
     color_ranges = {
@@ -88,7 +123,7 @@ def detect_cube_color(roi):
 
 
 def create_shelf_state():
-
+    """Build the 8-slot shelf state, all empty (``occupied: False``)."""
     shelf_state = []
 
     for position in range(1, 9):

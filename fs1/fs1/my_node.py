@@ -1,3 +1,9 @@
+"""
+Shelf/ArUco vision node: detects markers, classifies piece colors and
+publishes both the shelf inventory (``/shelf_state``) and the raw camera
+feed (``/camera/image``, republished as JPEG for the front-end).
+"""
+
 import json
 
 import cv2
@@ -21,9 +27,10 @@ from fs1.detector import (
 print(cv2)
 
 class VisionNode(Node):
+    """Reads the effector camera, maps ArUco markers to shelf slots and colors."""
 
     def __init__(self):
-
+        """Open the camera and set up the publishers, timer and parameters."""
         super().__init__("vision_node")
 
         # Janelas de depuração (cv2.imshow) desligadas por padrão: abrem uma
@@ -70,7 +77,12 @@ class VisionNode(Node):
         )
 
     def process_frame(self):
+        """
+        Grab one frame, detect markers/colors and publish the shelf state.
 
+        Runs on a 0.03 s timer; only every 10th frame is actually
+        processed/published, to keep the CPU and topic rate reasonable.
+        """
         ret, frame = self.camera.read()
 
         if not ret:
@@ -188,7 +200,7 @@ class VisionNode(Node):
         self,
         shelf_state
     ):
-
+        """Publish ``shelf_state`` (list of 8 slot dicts) as JSON."""
         msg = String()
 
         msg.data = json.dumps(
@@ -201,7 +213,7 @@ class VisionNode(Node):
 
 
 def main(args=None):
-
+    """Entry point for the shelf/ArUco vision node."""
     rclpy.init(args=args)
 
     node = VisionNode()

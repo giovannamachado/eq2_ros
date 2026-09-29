@@ -1,3 +1,12 @@
+"""
+Reference joint-space poses and the original pick/place demo sequence.
+
+The poses here (``home``, ``cubos``, ``pre_place``/``place``) were measured
+by hand on the physical robot; ``fs1.supervisor`` reuses them for the
+automatic pick/drop routine (RF#06) instead of hardcoding a fixed
+demo like ``KinovaApi`` below does.
+"""
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -21,7 +30,10 @@ cubos.append([-29.0,-59.0,69.0,48.0,-47.0,-59.0])#cubo 8
 
 #adicionar todos os locais de cubos
 class KinovaApi(Node):
+    """Fixed demo: photo pose -> pick one hardcoded cube -> place it."""
+
     def __init__(self):
+        """Create the joint-position and gripper publishers."""
         super().__init__('api_kinova')
         self.get_logger().info('orquestrador de nós iniciado')      
         
@@ -32,6 +44,7 @@ class KinovaApi(Node):
         self.publisher_gripper_controller = self.create_publisher(String,'/controlador_garra',10)
 
     def start(self):
+        """Move to the photo pose, then HOME, and open the gripper."""
         time.sleep(2)
         msg_junta = String()
         msg_junta.data = json.dumps(pose_foto)
@@ -46,6 +59,7 @@ class KinovaApi(Node):
         time.sleep(6)
 
     def pick_one_cube(self):
+        """Advance to a fixed cube slot, close the gripper, and retreat home."""
         time.sleep(2)
         cubo = 3
         msg_junta = String()
@@ -62,6 +76,7 @@ class KinovaApi(Node):
         time.sleep(7)
 
     def test_abrir_fechar(self):
+        """Quick manual check: close the gripper, wait, then open it."""
         time.sleep(4)
         msg = String()
         msg.data = 'fechar'
@@ -71,6 +86,7 @@ class KinovaApi(Node):
         msg.data = 'abrir' 
 
     def put_in_box_function(self):
+        """Carry the held piece to the drop: pre_place -> place -> open -> HOME."""
         msg = String()
         msg.data = json.dumps(pre_place)
         self.publisher_controlador_juntas.publish(msg)
@@ -87,6 +103,7 @@ class KinovaApi(Node):
         
         
 def main(args=None):
+   """Entry point: run the fixed photo -> pick -> place demo once."""
    rclpy.init(args=args)
    kinova_instance = KinovaApi()
    kinova_instance.start()
