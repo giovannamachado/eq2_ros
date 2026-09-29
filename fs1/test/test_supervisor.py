@@ -12,7 +12,7 @@ import pytest  # noqa: E402
 import rclpy  # noqa: E402
 from std_msgs.msg import String  # noqa: E402
 
-from fs1.kinova_api import home  # noqa: E402
+from fs1.kinova_api import cubos, home, place, pre_place  # noqa: E402
 from fs1.supervisor import (  # noqa: E402
     State,
     Supervisor,
@@ -58,11 +58,12 @@ def ros_context():
 def node():
     """Supervisor with fast timings and recording publishers."""
     supervisor = Supervisor()
+    fast = ('home_settle_s', 'scan_window_s', 'pick_advance_s',
+            'pick_grip_s', 'pick_retreat_s', 'drop_approach_s',
+            'drop_place_s', 'drop_retreat_s')
     supervisor.set_parameters([
-        rclpy.parameter.Parameter(
-            'home_settle_s', rclpy.Parameter.Type.DOUBLE, 0.05),
-        rclpy.parameter.Parameter(
-            'scan_window_s', rclpy.Parameter.Type.DOUBLE, 0.05),
+        rclpy.parameter.Parameter(name, rclpy.Parameter.Type.DOUBLE, 0.05)
+        for name in fast
     ])
     supervisor.state_pub = Recorder()
     supervisor.joints_pub = Recorder()
@@ -87,6 +88,20 @@ def command(node, text):
 def feed(node, sample):
     """Deliver a /shelf_state sample to the supervisor."""
     node._on_shelf_state(String(data=json.dumps(sample)))
+
+
+def hand(node, closed):
+    """Deliver a /hand_status sample, as fs1.hand_node publishes it."""
+    node._on_hand_status(String(data=json.dumps({'closed': closed})))
+
+
+def reach_teleop(node, position=4, color='white'):
+    """Drive the FSM from IDLE to TELEOP with a single occupied slot."""
+    command(node, 'start')
+    assert spin_until(node, lambda: node.state is State.SCANNING)
+    feed(node, shelf(**{f'p{position}': color}))
+    assert spin_until(node, lambda: node.state is State.TELEOP)
+    return node.selected_slot
 
 
 def test_parse_command():
@@ -202,6 +217,75 @@ def test_invalid_shelf_payload_is_ignored(node):
     assert spin_until(node, lambda: node.state is State.SCANNING)
     node._on_shelf_state(String(data='not json'))
     assert node._samples == []
+
+
+def test_closed_hand_in_teleop_runs_full_pick_and_drop_cycle(node):
+    slot = reach_teleop(node, position=4, color='white')
+    node.joints_pub.messages.clear()
+    node.gripper_pub.messages.clear()
+
+    hand(node, True)  # gesto gatilho (RF#06)
+
+    assert node.state is State.TELEOP
+    assert json.loads(node.joints_pub.messages[-1].data) == cubos[slot - 1]
+
+    assert spin_until(node, lambda: node.gripper_pub.messages, timeout=1.0)
+    assert node.gripper_pub.messages[0].data == 'fechar'
+
+    # DROP já entra publicando o pre_place (retreat + aproximação do drop
+    # acontecem na mesma transição); o "home" do retreat é o item anterior.
+    assert spin_until(node, lambda: node.state is State.DROP, timeout=2.0)
+    assert json.loads(node.joints_pub.messages[-1].data) == pre_place
+    assert json.loads(node.joints_pub.messages[-2].data) == home
+
+    assert spin_until(node, lambda: node.state is State.IDLE, timeout=3.0)
+    joint_targets = [json.loads(m.data) for m in node.joints_pub.messages]
+    assert joint_targets == [cubos[slot - 1], home, pre_place, place, home]
+    assert [m.data for m in node.gripper_pub.messages] == ['fechar', 'abrir']
+    assert node.selected_slot is None
+    assert not node._picking
+
+
+def test_closed_hand_gesture_needs_open_close_edge(node):
+    reach_teleop(node)
+    node.joints_pub.messages.clear()
+
+    hand(node, True)
+    hand(node, True)  # segurar a mão fechada não deve reiniciar a pega
+
+    assert len(node.joints_pub.messages) == 1
+
+
+def test_hand_status_ignored_outside_teleop(node):
+    hand(node, True)
+
+    assert node.state is State.IDLE
+    assert not node._picking
+
+
+def test_invalid_hand_status_payload_is_ignored(node):
+    reach_teleop(node)
+
+    node._on_hand_status(String(data='not json'))
+
+    assert node.state is State.TELEOP
+    assert not node._picking
+
+
+def test_stop_during_pick_cancels_the_sequence(node):
+    reach_teleop(node)
+    hand(node, True)
+    assert node.state is State.TELEOP
+    node.joints_pub.messages.clear()
+
+    command(node, 'stop')
+
+    assert node.state is State.IDLE
+    assert json.loads(node.joints_pub.messages[-1].data) == home
+    assert not node._picking
+    # A pega estava agendada; sem o cancelamento do timer ela dispararia
+    # tarde demais e atropelaria o próximo ciclo.
+    assert not spin_until(node, lambda: node.state is not State.IDLE, 1.0)
 
 
 def test_restart_after_finished_cycle(node):

@@ -18,10 +18,18 @@ directly:
   ``joints_control``.
 * ``/controlador_garra`` (``"abrir"``/``"fechar"``) consumed by
   ``gripper_control``.
+* ``/hand_status`` (``std_msgs/String``, JSON with a ``"closed"`` bool)
+  published by ``fs1.hand_node``: the closed-hand gesture, watched only
+  during TELEOP, triggers the automatic pick/drop routine (RF#06).
 
-Only the states needed up to the second delivery are automated here
-(IDLE -> HOME_INIT -> SCANNING -> TELEOP). The automatic pick/drop routine is
-left as a hook for the final delivery.
+Full cycle: IDLE -> HOME_INIT -> SCANNING -> TELEOP -> (closed-hand gesture)
+-> advance into the slot, grip, retreat -> DROP -> place, release -> IDLE.
+The pick/place joint positions come from ``fs1.kinova_api`` (already
+calibrated on the bench). FAILURE (RF#07, wrong alignment) is not
+implemented: telling a good pick from a missed one needs either the real
+end-effector position relative to the slot or a grip-success signal, and
+neither exists yet, so every closed-hand gesture during TELEOP takes the
+success path.
 """
 
 import json
@@ -32,7 +40,20 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from fs1.kinova_api import home
+from fs1.kinova_api import cubos, home, place, pre_place
+
+# Tempos padrão (segundos) de cada etapa da rotina automática de pega e
+# drop, copiados de fs1/kinova_api.py (KinovaApi.pick_one_cube /
+# put_in_box_function), que já tinham essas posições calibradas na bancada.
+# Viram parâmetros ROS (ver Supervisor.__init__), então dá para ajustar a
+# velocidade da pega sem mexer em código, ex.:
+#   ros2 run fs1 supervisor --ros-args -p pick_advance_s:=5.0
+DEFAULT_PICK_ADVANCE_S = 9.0
+DEFAULT_PICK_GRIP_S = 3.0
+DEFAULT_PICK_RETREAT_S = 7.0
+DEFAULT_DROP_APPROACH_S = 9.0
+DEFAULT_DROP_PLACE_S = 9.0
+DEFAULT_DROP_RETREAT_S = 7.0
 
 MIN_PERSISTENCE_S = 1.0  # RNF#02: minimum window before confirming a slot.
 STATE_HEARTBEAT_S = 0.5
@@ -94,6 +115,12 @@ class Supervisor(Node):
 
         self.declare_parameter('home_settle_s', 7.0)
         self.declare_parameter('scan_window_s', 2.0)
+        self.declare_parameter('pick_advance_s', DEFAULT_PICK_ADVANCE_S)
+        self.declare_parameter('pick_grip_s', DEFAULT_PICK_GRIP_S)
+        self.declare_parameter('pick_retreat_s', DEFAULT_PICK_RETREAT_S)
+        self.declare_parameter('drop_approach_s', DEFAULT_DROP_APPROACH_S)
+        self.declare_parameter('drop_place_s', DEFAULT_DROP_PLACE_S)
+        self.declare_parameter('drop_retreat_s', DEFAULT_DROP_RETREAT_S)
 
         self.state = State.IDLE
         self.selected_slot = None
@@ -101,6 +128,8 @@ class Supervisor(Node):
         self.error = None
         self._samples = []
         self._transition_timer = None
+        self._picking = False
+        self._hand_was_closed = False
 
         self.state_pub = self.create_publisher(String, '/supervisor/state', 10)
         self.joints_pub = self.create_publisher(String, '/posicoes_garra', 10)
@@ -111,6 +140,10 @@ class Supervisor(Node):
             String, '/supervisor/command', self._on_command, 10)
         self.create_subscription(
             String, '/shelf_state', self._on_shelf_state, 10)
+        # Vem do fs1.hand_node (rastreamento de mão): {"closed": bool, ...}.
+        # Só é usado durante TELEOP, para disparar a pega automática (RF#06).
+        self.create_subscription(
+            String, '/hand_status', self._on_hand_status, 10)
 
         self.create_timer(STATE_HEARTBEAT_S, self._publish_state)
         self._publish_state()
@@ -175,6 +208,75 @@ class Supervisor(Node):
         except json.JSONDecodeError:
             self.get_logger().warn('Invalid /shelf_state payload ignored.')
 
+    def _on_hand_status(self, msg):
+        """
+        Watch for the closed-hand gesture while teleoperating (RF#06).
+
+        Only reacts during TELEOP, and only on the closed-hand *edge* (open
+        -> closed), so holding the hand closed doesn't retrigger the pick.
+
+        Limitation: this always takes the success path (advance, grip,
+        return, drop). Telling a correctly-aligned pick from a missed one
+        (RF#07) needs to know the end-effector's real position relative to
+        the slot (e.g. via TF2, the way fs1.cam_teleop checks its workspace
+        limits) or a grip-success signal from the gripper; neither exists
+        yet, so a wrong alignment today still runs the same "success" motion
+        instead of the FAILURE recovery in fs1's FSM diagram.
+        """
+        if self.state is not State.TELEOP or self._picking:
+            return
+        try:
+            closed = bool(json.loads(msg.data).get('closed', False))
+        except json.JSONDecodeError:
+            return
+
+        if closed and not self._hand_was_closed:
+            self._start_pick_sequence()
+        self._hand_was_closed = closed
+
+    def _start_pick_sequence(self):
+        """TELEOP -> advance into the slot and grip (first half of RF#06)."""
+        self._picking = True
+        slot = self.selected_slot
+        self._set_state(
+            State.TELEOP, f'Pegando a peça do slot {slot}...')
+        self.joints_pub.publish(String(data=json.dumps(cubos[slot - 1])))
+        self._after(self.get_parameter('pick_advance_s').value, self._pick_close_gripper)
+
+    def _pick_close_gripper(self):
+        """Close the gripper once the arm has reached the cube."""
+        self.gripper_pub.publish(String(data='fechar'))
+        self._after(self.get_parameter('pick_grip_s').value, self._pick_retreat)
+
+    def _pick_retreat(self):
+        """Retreat to HOME with the piece before heading to the drop."""
+        self.joints_pub.publish(String(data=json.dumps(home)))
+        self._after(self.get_parameter('pick_retreat_s').value, self._drop_approach)
+
+    def _drop_approach(self):
+        """HOME -> DROP: move to the pre-place pose."""
+        self._set_state(State.DROP, 'Levando a peça até o drop...')
+        self.joints_pub.publish(String(data=json.dumps(pre_place)))
+        self._after(self.get_parameter('drop_approach_s').value, self._drop_place)
+
+    def _drop_place(self):
+        """Move into the final place pose, over the drop."""
+        self.joints_pub.publish(String(data=json.dumps(place)))
+        self._after(self.get_parameter('drop_place_s').value, self._drop_release)
+
+    def _drop_release(self):
+        """Open the gripper, release the piece, and head back to HOME."""
+        self.gripper_pub.publish(String(data='abrir'))
+        self.joints_pub.publish(String(data=json.dumps(home)))
+        self._after(self.get_parameter('drop_retreat_s').value, self._finish_pick_cycle)
+
+    def _finish_pick_cycle(self):
+        """DROP -> IDLE: cycle complete, ready for the next start command."""
+        self._picking = False
+        self._hand_was_closed = False
+        self.selected_slot = None
+        self._set_state(State.IDLE, 'Peça entregue. Sistema em repouso.')
+
     def _on_command(self, msg):
         """Handle ``start``/``stop`` commands from the front-end."""
         command = parse_command(msg.data)
@@ -223,6 +325,8 @@ class Supervisor(Node):
         """Any state -> IDLE: cancel pending work and return to HOME."""
         self._cancel_timer()
         self.selected_slot = None
+        self._picking = False
+        self._hand_was_closed = False
         self._go_home(open_gripper=False)
         self._set_state(State.IDLE, 'Operação interrompida. Robô em HOME.')
 

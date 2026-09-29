@@ -1,9 +1,16 @@
 """
 Launch the ROS side of the Flutter front-end integration.
 
-Starts rosbridge (WebSocket for Flutter), the supervisor FSM, the existing
-vision / joint / gripper nodes and republishes the camera as JPEG so the
-front-end can render it over the same WebSocket.
+Starts rosbridge (WebSocket for Flutter), the supervisor FSM, the vision /
+joint / gripper nodes, the hand-gesture teleop bridge (servo_adapter +
+cam_teleop) and republishes both cameras as JPEG so the front-end can
+render them over the same WebSocket.
+
+NOT started here (run separately, see eq2_ros/reademe.md):
+* MoveIt Servo itself (``ros2 launch fs1 servo.launch.py``) — needs the
+  real/fake robot hardware interface. Without it, servo_adapter just waits
+  for its service and cmd_vel has no effect; nothing else is affected.
+* ``hand_node`` — needs mediapipe, which this image does not ship.
 
 Arguments:
     rosbridge_port: WebSocket port used by the Flutter app (default 9090).
@@ -55,6 +62,14 @@ def generate_launch_description():
         Node(package=pkg, executable='gripper_control', name='gripper_control',
              output='screen'),
         Node(package=pkg, executable='gripper_client', name='gripper_client'),
+
+        # Ponte gesto -> Twist -> MoveIt Servo (RF#04). Sem o servo_node
+        # rodando (ros2 launch fs1 servo.launch.py), o servo_adapter só fica
+        # esperando o serviço dele; não afeta o resto do sistema.
+        Node(package=pkg, executable='servo_adapter', name='servo_adapter',
+             output='screen'),
+        Node(package=pkg, executable='CamTeleop', name='cam_teleop',
+             output='screen'),
 
         # /camera/image (raw, from my_node) -> JPEG for the Flutter app.
         Node(
