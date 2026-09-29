@@ -91,6 +91,7 @@ def create_shelf_state():
 
     shelf_state = []
 
+
     for position in range(1, 9):
 
         shelf_state.append({

@@ -1,4 +1,5 @@
 import json
+import random
 
 import cv2
 
@@ -18,7 +19,7 @@ from fs1.detector import (
     detect_cube_color,
     create_shelf_state
 )
-print(cv2)
+
 
 class VisionNode(Node):
 
@@ -38,6 +39,12 @@ class VisionNode(Node):
             10
         )
 
+        self.selected_cube_publisher = self.create_publisher(
+            String,
+            "/selected_cube",
+            10
+        )
+
         self.bridge = CvBridge()
 
         self.camera = cv2.VideoCapture(0)
@@ -45,6 +52,8 @@ class VisionNode(Node):
         self.detector = create_detector()
 
         self.frame_count = 0
+
+        self.last_shelf_state = None
 
         self.timer = self.create_timer(
             0.03,
@@ -92,9 +101,7 @@ class VisionNode(Node):
         for marker_id, info in markers.items():
 
             position = info["position"]
-
             marker_center = info["center"]
-
             marker_size_px = info["size_px"]
 
             cube_center, roi = calculate_cube_roi(
@@ -124,63 +131,78 @@ class VisionNode(Node):
 
                 if color is not None:
 
-                    shelf_state[
-                        position - 1
-                    ]["occupied"] = True
+                    shelf_state[position - 1]["occupied"] = True
 
-                    shelf_state[
-                        position - 1
-                    ]["color"] = color
+                    shelf_state[position - 1]["color"] = color
 
-                # cv2.imshow(
-                #     f"Cube ROI {marker_id}",
-                #     roi_image
-                # )
+                cv2.imshow(
+                    f"Cube ROI {marker_id}",
+                    roi_image
+                )
 
-            cv2.circle(
-                frame,
-                marker_center,
-                6,
-                (0, 255, 0),
-                -1
-            )
+            cv2.circle(frame, marker_center, 6, (0, 255, 0), -1)
 
-            cv2.circle(
-                frame,
-                cube_center,
-                8,
-                (255, 0, 255),
-                -1
-            )
+            cv2.circle(frame, cube_center, 8, (255, 0, 255), -1)
 
-            cv2.rectangle(
-                frame,
-                (x_min_roi, y_min_roi),
-                (x_max_roi, y_max_roi),
-                (255, 255, 0),
-                2
-            )
+            cv2.rectangle(frame, (x_min_roi, y_min_roi), (x_max_roi, y_max_roi), (255, 255, 0), 2)
 
-        self.publish_shelf_state(
-            shelf_state
+        self.publish_shelf_state(shelf_state)
+
+        if shelf_state != self.last_shelf_state:
+
+            self.select_random_cube(shelf_state)
+
+            self.last_shelf_state = shelf_state
+
+        cv2.imshow(
+            "Vision Node",
+            frame
         )
 
-        # cv2.imshow("Vision Node", frame)
-        # cv2.waitKey(1)
+        cv2.waitKey(1)
 
-    def publish_shelf_state(
+    def publish_shelf_state(self, shelf_state):
+
+        msg = String()
+
+        msg.data = json.dumps(shelf_state)
+
+        self.publisher.publish(msg)
+
+    def select_random_cube(
         self,
         shelf_state
     ):
 
+        available_cubes = [
+            cube
+            for cube in shelf_state
+            if cube["occupied"]
+        ]
+
+        if not available_cubes:
+
+            self.get_logger().info(
+                "Nenhum cubo disponível para sorteio."
+            )
+
+            return
+
+        selected_cube = random.choice(available_cubes)
+
         msg = String()
 
-        msg.data = json.dumps(
-            shelf_state
-        )
+        msg.data = json.dumps({
+            "position": selected_cube["position"],
+            "color": selected_cube["color"]
+        })
 
-        self.publisher.publish(
-            msg
+        self.selected_cube_publisher.publish(msg)
+
+        self.get_logger().info(
+            f"Cubo sorteado: "
+            f"posição {selected_cube['position']} - "
+            f"cor {selected_cube['color']}"
         )
 
 
