@@ -31,7 +31,7 @@ def test_Detector(args=None):
     except KeyboardInterrupt: pass
     finally:
         msg = String()
-        msg.data = json.dumps({"limit":limit+10,"rez":480,"mzone":60,"dzone":120})
+        msg.data = json.dumps({"limit":limit+15,"rez":480,"mzone":60,"dzone":120})
         node.switch_running(msg)
         dist = node.hand_dist
     runinng = node.is_running
