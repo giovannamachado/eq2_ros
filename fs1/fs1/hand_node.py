@@ -77,6 +77,12 @@ class HandNode(Node):
                  print_mode = False,
                  cross_mode = False):#O modo de exibição das zonas da imagem
         super().__init__("hand_node")
+        # Índice da câmera do operador (webcam do notebook). No laboratório é
+        # um dispositivo diferente do da câmera do efetuador (usada pelo
+        # my_node); ajuste via --ros-args -p camera_index:=<n> em vez de
+        # editar o código.
+        self.declare_parameter('camera_index', 0)
+        self.camera_index = self.get_parameter('camera_index').value
         if task_path == None:
             task_path = self.defaut_path()
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
@@ -207,7 +213,7 @@ class HandNode(Node):
     def run(self,limit = False):
         self.get_logger().info("Running Detector")
         #cap = cv.VideoCapture(0, cv.CAP_DSHOW)
-        cap = cv.VideoCapture(0)
+        cap = cv.VideoCapture(self.camera_index)
         #tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.rez[1])
         cap.set(cv.CAP_PROP_FRAME_WIDTH, self.rez[0])

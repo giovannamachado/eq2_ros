@@ -33,6 +33,13 @@ class VisionNode(Node):
         self.declare_parameter('debug_windows', False)
         self.debug_windows = self.get_parameter('debug_windows').value
 
+        # Índice da câmera do efetuador (2K, acoplada ao robô). No laboratório
+        # ela e a webcam do operador (usada pelo hand_node) são dispositivos
+        # físicos diferentes; ajuste o índice de cada uma via parâmetro em vez
+        # de editar o código. Ex.: --ros-args -p camera_index:=2
+        self.declare_parameter('camera_index', 0)
+        camera_index = self.get_parameter('camera_index').value
+
         self.publisher = self.create_publisher(
             String,
             "/shelf_state",
@@ -47,7 +54,7 @@ class VisionNode(Node):
 
         self.bridge = CvBridge()
 
-        self.camera = cv2.VideoCapture(0)
+        self.camera = cv2.VideoCapture(camera_index)
 
         self.detector = create_detector()
 
