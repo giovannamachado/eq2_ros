@@ -3,7 +3,7 @@ Cube ROI geometry and color classification for the shelf slots.
 
 Given a detected ArUco marker (see ``fs1.marker``), this module locates the
 cube that sits above it in the camera image and classifies its color, so
-``fs1.my_node`` can report which shelf slots are occupied and with what.
+``fs1.vision_node`` can report which shelf slots are occupied and with what.
 """
 
 import cv2
@@ -125,6 +125,7 @@ def detect_cube_color(roi):
 def create_shelf_state():
     """Build the 8-slot shelf state, all empty (``occupied: False``)."""
     shelf_state = []
+
 
     for position in range(1, 9):
 

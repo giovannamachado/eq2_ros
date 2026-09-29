@@ -65,18 +65,19 @@ class HandNode(Node):
             p2 = os.path.join(p1.parents[i],base)
         #i-=1
         return p2
-    def __init__(self,#varios valores padrão
-                 dead_zone_size= (120,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
-                 max_zone_size= (120,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
-                 #frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
-                 frame_width = 720,frame_height = 480,#resolução desejada (no coumputador testado ele transforma em 720x1280)
-                 task_path =  None,#caminho para o arquivo tsak do mediapipe
-                 #task_path = "files/hand_landmarker.task",
-                 confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
-                 limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
-                 frame_jump = 0,
-                 print_mode = False,
-                 cross_mode = False):#O modo de exibição das zonas da imagem
+    def __init__(self,dead_zone_size= (120,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
+                max_zone_size= (120,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
+
+                frame_width = 720,frame_height = 480,#resolução desejada (no coumputador testado ele tem maxima 720x1280)
+
+                task_path =  None,#caminho para o arquivo tsak do mediapipe
+                confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
+                limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
+                frame_jump = 0,
+
+                cross_mode = False,#O modo de exibição das zonas da imagem
+                print_mode = False,
+                test_mode:dict|bool = False):#aciona o run no final do init para testes
         super().__init__("hand_node")
         # Índice da câmera do operador (webcam do notebook). No laboratório é
         # um dispositivo diferente do da câmera do efetuador (usada pelo
@@ -84,6 +85,7 @@ class HandNode(Node):
         # editar o código.
         self.declare_parameter('camera_index', 0)
         self.camera_index = self.get_parameter('camera_index').value
+        
         if task_path == None: task_path = self.defaut_path()
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
         self.frame_jump = False if not frame_height or frame_jump<=1 else frame_jump-1
@@ -111,6 +113,8 @@ class HandNode(Node):
         #publica a imagem da câmera do operador para o front-end (ver frontend.launch.py)
         self.image_pub = self.create_publisher(Image,"/camera/operator/image_raw",10)
         self.get_logger().info("Hand node started.")
+        if test_mode and isinstance(test_mode,dict):
+            self.run(limit=test_mode["limit"])
 
     def _publish_frame(self):#monta a mensagem Image sem cv_bridge (evita depender dele aqui)
         msg = Image()
@@ -161,7 +165,12 @@ class HandNode(Node):
         if "mzone" in param:
             m_zone_size = param["mzone"]
             if isinstance(m_zone_size,list) or isinstance(m_zone_size,tuple): self.dzone = (m_zone_size[0]/2,m_zone_size[1]/2)
-            else: self.mzone = (m_zone_size/2,m_zone_size/2)
+            elif isinstance(m_zone_size,int): self.mzone = (m_zone_size/2,m_zone_size/2)
+        if "rez" in param:
+            rez = param["rez"]
+            if isinstance(rez,tuple): self.rez = rez
+            elif isinstance(rez,list):self.rez = (rez[0],rez[1])   
+            elif isinstance(rez,int): self.rez = (rez,rez)
         self._running = not self._running
         if self._running:
             if "limit" in param: self.run(limit=param["limit"])
@@ -227,7 +236,8 @@ class HandNode(Node):
     def run(self,limit = False):
         self.get_logger().info("Running Detector")
         #cap = cv.VideoCapture(0, cv.CAP_DSHOW)
-        cap = cv.VideoCapture(self.camera_index)
+        i = self.camera_index
+        cap = cv.VideoCapture(i if isinstance(i,int) else 0)
         #tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.rez[1])
         cap.set(cv.CAP_PROP_FRAME_WIDTH, self.rez[0])

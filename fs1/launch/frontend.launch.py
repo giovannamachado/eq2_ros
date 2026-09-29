@@ -54,7 +54,7 @@ def generate_launch_description():
                 'scan_window_s': LaunchConfiguration('scan_window_s'),
             }],
         ),
-        Node(package=pkg, executable='my_node', name='vision_node',
+        Node(package=pkg, executable='vision_node', name='vision_node',
              output='screen',
              parameters=[{'camera_index': LaunchConfiguration('camera_index')}]),
         Node(package=pkg, executable='joints_control', name='joints_control',
@@ -71,7 +71,7 @@ def generate_launch_description():
         Node(package=pkg, executable='CamTeleop', name='cam_teleop',
              output='screen'),
 
-        # /camera/image (raw, from my_node) -> JPEG for the Flutter app.
+        # /camera/image (raw, from vision_node) -> JPEG for the Flutter app.
         Node(
             package='image_transport',
             executable='republish',
