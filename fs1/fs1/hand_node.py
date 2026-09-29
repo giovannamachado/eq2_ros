@@ -66,10 +66,10 @@ class HandNode(Node):
         #i-=1
         return p2
     def __init__(self,#varios valores padrão
-                 dead_zone_size= (160,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
-                 max_zone_size= (160,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
+                 dead_zone_size= (120,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
+                 max_zone_size= (120,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
                  #frame_width = 1900,frame_height = 1900,#resolução desejada (no coumputador testado ele transforma em 720x1280)
-                 frame_width = 960,frame_height = 540,#resolução desejada (no coumputador testado ele transforma em 720x1280)
+                 frame_width = 720,frame_height = 480,#resolução desejada (no coumputador testado ele transforma em 720x1280)
                  task_path =  None,#caminho para o arquivo tsak do mediapipe
                  #task_path = "files/hand_landmarker.task",
                  confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
