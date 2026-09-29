@@ -70,15 +70,15 @@ class HandNode(Node):
     def defaut_path(self,base = "files/hand_landmarker.task"):
         p1 = pathlib.Path(__file__).parent.resolve()
         i = 0
+        extra = "src/eq2_ros/fs1"
         p2 = os.path.join(p1.parents[i],base)
-        while not os.path.exists(p2):
+        p3 =  os.path.join(p1.parents[i],extra,base)
+        while not os.path.exists(p2) and not os.path.exists(p3):
             self.get_logger().info(f"{p1.parents[i]}")
-            
-            #print(p1.parents[i])
             i+=1 
             p2 = os.path.join(p1.parents[i],base)
-        #i-=1
-        return p2
+            p3 = os.path.join(p1.parents[i],extra,base)
+        return p2 if os.path.exists(p2) else p3
     def __init__(self,dead_zone_size= (120,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
                 max_zone_size= (120,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
 
