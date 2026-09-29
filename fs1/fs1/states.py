@@ -8,15 +8,19 @@ def change_state(state:str,var:list|bool):
         match(state):
             case("OFF"): return "HOME"
             case("HOME"): 
-                if var: return "MOVING"
-            case("MOVING"): 
-                return "IDLE"
+                if isinstance(var,bool) or "move" in var: return "MOVING"
             case("IDLE"): 
-                return "HOME"
+                if isinstance(var,bool) or "move" in var: return "MOVING"
             case("IDLE-BORDER"): 
-                return "HOME"
+                if isinstance(var,bool) or "move" in var: return "MOVING-BODER"
+            case("MOVING"): 
+                if isinstance(var,list):
+                    if   "normal" in var: return "IDLE"
+                    elif "border" in var: return "IDLE-BORDER"
             case("MOVING-BODER"): 
-                return "HOME"
+                if isinstance(var,list):
+                    if   any(k in var for k in ["border","stop"]): return "IDLE-BORDER"
+                    elif any(k in var for k in ["normal","move"]): return "IDLE-BORDER"
             case("PRE-PICK"): 
                 return "HOME"
             case("PICKING"): 
