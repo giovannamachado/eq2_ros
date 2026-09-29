@@ -13,6 +13,20 @@ import os
 
 print(cv)
 
+
+def _parse_camera_index(value):
+    """
+    Turn the ``camera_index`` parameter into what ``cv2.VideoCapture`` wants.
+
+    Accepts a plain number (``0``, ``"2"``) or a stable device path (e.g.
+    ``/dev/v4l/by-id/usb-Logitech_BRIO-video-index0``, which keeps working
+    after the camera is unplugged and plugged into a different USB port,
+    unlike ``/dev/videoN``'s number).
+    """
+    text = str(value)
+    return int(text) if text.lstrip('-').isdigit() else text
+
+
 @dataclass
 class handDist:
     x:float #classe que guarda as informações
@@ -81,10 +95,13 @@ class HandNode(Node):
         super().__init__("hand_node")
         # Índice da câmera do operador (webcam do notebook). No laboratório é
         # um dispositivo diferente do da câmera do efetuador (usada pelo
-        # my_node); ajuste via --ros-args -p camera_index:=<n> em vez de
-        # editar o código.
-        self.declare_parameter('camera_index', 0)
-        self.camera_index = self.get_parameter('camera_index').value
+        # vision_node); ajuste via --ros-args -p camera_index:=<n> em vez de
+        # editar o código. Pode ser um número (0, 1, 2...) ou um caminho
+        # estável, tipo /dev/v4l/by-id/usb-<algo>-video-index0 (não muda ao
+        # trocar de porta USB, diferente do número, que muda).
+        self.declare_parameter('camera_index', '0')
+        self.camera_index = _parse_camera_index(
+            self.get_parameter('camera_index').value)
         
         if task_path == None: task_path = self.defaut_path()
         self.limit = limit if limit<0 else -limit#limite deve ser negativo
@@ -236,8 +253,7 @@ class HandNode(Node):
     def run(self,limit = False):
         self.get_logger().info("Running Detector")
         #cap = cv.VideoCapture(0, cv.CAP_DSHOW)
-        i = self.camera_index
-        cap = cv.VideoCapture(i if isinstance(i,int) else 0)
+        cap = cv.VideoCapture(self.camera_index)
         #tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.rez[1])
         cap.set(cv.CAP_PROP_FRAME_WIDTH, self.rez[0])

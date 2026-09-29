@@ -33,6 +33,19 @@ from fs1.detector import (
 )
 
 
+def _parse_camera_index(value):
+    """
+    Turn the ``camera_index`` parameter into what ``cv2.VideoCapture`` wants.
+
+    Accepts a plain number (``0``, ``"2"``) or a stable device path (e.g.
+    ``/dev/v4l/by-id/usb-Logitech_BRIO-video-index0``, which keeps working
+    after the camera is unplugged and plugged into a different USB port,
+    unlike ``/dev/videoN``'s number).
+    """
+    text = str(value)
+    return int(text) if text.lstrip('-').isdigit() else text
+
+
 class VisionNode(Node):
     """Reads the effector camera, maps ArUco markers to shelf slots and colors."""
 
@@ -50,9 +63,13 @@ class VisionNode(Node):
         # Índice da câmera do efetuador (2K, acoplada ao robô). No
         # laboratório ela e a webcam do operador (hand_node) são
         # dispositivos físicos diferentes; ajuste via
-        # --ros-args -p camera_index:=<n> em vez de editar o código.
-        self.declare_parameter('camera_index', 0)
-        camera_index = self.get_parameter('camera_index').value
+        # --ros-args -p camera_index:=<n> em vez de editar o código. Pode
+        # ser um número (0, 1, 2...) ou um caminho estável, tipo
+        # /dev/v4l/by-id/usb-<algo>-video-index0 (não muda ao trocar de
+        # porta USB, diferente do número, que muda).
+        self.declare_parameter('camera_index', '0')
+        camera_index = _parse_camera_index(
+            self.get_parameter('camera_index').value)
 
         self.publisher = self.create_publisher(
             String,

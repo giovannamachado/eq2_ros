@@ -17,10 +17,12 @@ Arguments:
         Change it if another process on the same machine already holds 9090
         (the container uses --net host, so the port is shared with the
         whole machine, not just this container).
-    camera_index: /dev/video<N> used by the effector (shelf/ArUco) camera
-        (default 0). On a machine with more than one camera, point this at
-        the robot's 2K camera; see fs1/fs1/hand_node.py's own camera_index
-        parameter for the operator webcam.
+    camera_index: /dev/video<N> (or a stable /dev/v4l/by-id/... path, which
+        survives the camera moving to a different USB port) used by the
+        effector (shelf/ArUco) camera. Default 0. On a machine with more
+        than one camera, point this at the robot's 2K camera; see
+        fs1/fs1/hand_node.py's own camera_index parameter for the operator
+        webcam.
     home_settle_s / scan_window_s: FSM timings, see ``fs1/supervisor.py``.
 """
 
@@ -28,6 +30,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -56,7 +59,13 @@ def generate_launch_description():
         ),
         Node(package=pkg, executable='vision_node', name='vision_node',
              output='screen',
-             parameters=[{'camera_index': LaunchConfiguration('camera_index')}]),
+             # ParameterValue(..., value_type=str) força a string: sem isso,
+             # um valor puramente numérico (ex. o "0" padrão) vira um YAML
+             # inteiro no arquivo de parâmetros do launch e o nó morre, já
+             # que vision_node.py declara camera_index como string (para
+             # também aceitar um caminho /dev/v4l/by-id/...).
+             parameters=[{'camera_index': ParameterValue(
+                 LaunchConfiguration('camera_index'), value_type=str)}]),
         Node(package=pkg, executable='joints_control', name='joints_control',
              output='screen'),
         Node(package=pkg, executable='gripper_control', name='gripper_control',
