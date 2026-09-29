@@ -7,6 +7,13 @@ front-end can render it over the same WebSocket.
 
 Arguments:
     rosbridge_port: WebSocket port used by the Flutter app (default 9090).
+        Change it if another process on the same machine already holds 9090
+        (the container uses --net host, so the port is shared with the
+        whole machine, not just this container).
+    camera_index: /dev/video<N> used by the effector (shelf/ArUco) camera
+        (default 0). On a machine with more than one camera, point this at
+        the robot's 2K camera; see fs1/fs1/hand_node.py's own camera_index
+        parameter for the operator webcam.
     home_settle_s / scan_window_s: FSM timings, see ``fs1/supervisor.py``.
 """
 
@@ -22,6 +29,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('rosbridge_port', default_value='9090'),
+        DeclareLaunchArgument('camera_index', default_value='0'),
         DeclareLaunchArgument('home_settle_s', default_value='7.0'),
         DeclareLaunchArgument('scan_window_s', default_value='2.0'),
 
@@ -40,7 +48,8 @@ def generate_launch_description():
             }],
         ),
         Node(package=pkg, executable='my_node', name='vision_node',
-             output='screen'),
+             output='screen',
+             parameters=[{'camera_index': LaunchConfiguration('camera_index')}]),
         Node(package=pkg, executable='joints_control', name='joints_control',
              output='screen'),
         Node(package=pkg, executable='gripper_control', name='gripper_control',
