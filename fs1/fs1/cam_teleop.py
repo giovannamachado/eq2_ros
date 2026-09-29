@@ -1,48 +1,36 @@
-"""
-A ROS 2 node for keyboard teleoperation.
-
-Captures keyboard inputs in raw mode from the terminal and publishes 
-standard geometry_msgs/Twist messages to the '/cmd_vel' topic.
-"""
-
-import sys
-import select
-import termios
-import tty
 import json
-
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 
-class CamTeleop(Node):
-    """
-    A standalone ROS 2 node that reads keystrokes and publishes Twist messages.
-    
-    Attributes:
-        publisher_ (Publisher): Publishes twist commands to '/cmd_vel'.
-        speed (float): Current translation speed in meters per second.
-        target_y (float): Target velocity along the Y-axis.
-        target_z (float): Target velocity along the Z-axis.
-    """
+# Importações necessárias do TF2
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
+
+
+class CamTeleop(Node):
     def __init__(self):
-        """Initializes the teleop node and its publisher."""
         super().__init__('keyboard_teleop')
-        self.subscriber_cam_node = self.create_subscription(String, '/hand_status', self.recebi_mensagem,10)
+        self.subscriber_cam_node = self.create_subscription(String, '/hand_status', self.recebi_mensagem, 10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.speed = 2.0
-        self.target_y = 0.0
-        self.target_z = 0.0
+        
+        self.speed = 1.0
+
+        # --- Inicialização do TF2 Listener ---
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # --- Definição dos Limites (em metros no referencial do base_link) ---
+        self.y_min = -0.171  # Limite máximo para a DIREITA (-Y)
+        self.y_max =  0.297  # Limite máximo para a ESQUERDA (+Y)
+        self.z_min =  0.156  # Limite mínimo para BAIXO (+Z)
+        self.z_max =  0.357  # Limite máximo para CIMA (+Z)
 
     def recebi_mensagem(self, mensagem: String):
-        """
-        Callback que recebe uma string JSON com os comandos de movimento e garras,
-        converte os dados e publica a velocidade correspondente via Twist.
-        """
         try:
-            # Decodifica a mensagem JSON em um dicionário Python
             dados = json.loads(mensagem.data)
         except json.JSONDecodeError:
             self.get_logger().error(f"Falha ao decodificar o JSON recebido: {mensagem.data}")
@@ -50,27 +38,52 @@ class CamTeleop(Node):
 
         twist = Twist()
 
-        
+        # 1. Cálculo inicial da velocidade desejada
         if 'esquerda' in dados:
-            # 'esquerda' em dados representa magnitude positiva no sentido +Y
             twist.linear.y = float(dados['esquerda']) * 0.1 * self.speed
         elif 'direita' in dados:
-            # 'direita' em dados representa magnitude positiva no sentido -Y
             twist.linear.y = -float(dados['direita']) * 0.1 * self.speed
-        else:
-            twist.linear.y = 0.0
 
-        # --- Controle do Eixo Z (Cima / Baixo) ---
         if 'cima' in dados:
-            # 'cima' em dados representa magnitude positiva no sentido +Z
             twist.linear.z = float(dados['cima']) * 0.1 * self.speed
         elif 'baixo' in dados:
-            # 'baixo' em dados representa magnitude positiva no sentido -Z
             twist.linear.z = -float(dados['baixo']) * 0.1 * self.speed
-        else:
+
+        # 2. Obtenção da posição atual via TF2
+        try:
+            t = self.tf_buffer.lookup_transform(
+                'base_link',
+                'tool_frame',
+                rclpy.time.Time()
+            )
+            
+            pos_y = t.transform.translation.y
+            pos_z = t.transform.translation.z
+
+            
+            # Trava do Eixo Y (Esquerda / Direita)
+            if pos_y >= self.y_max and twist.linear.y > 0.0:
+                self.get_logger().warn("Limite máximo em Y (Esquerda) atingido!")
+                twist.linear.y = 0.0
+            elif pos_y <= self.y_min and twist.linear.y < 0.0:
+                self.get_logger().warn("Limite mínimo em Y (Direita) atingido!")
+                twist.linear.y = 0.0
+
+            # Trava do Eixo Z (Cima / Baixo)
+            if pos_z >= self.z_max and twist.linear.z > 0.0:
+                self.get_logger().warn("Limite máximo em Z (Cima) atingido!")
+                twist.linear.z = 0.0
+            elif pos_z <= self.z_min and twist.linear.z < 0.0:
+                self.get_logger().warn("Limite mínimo em Z (Baixo) atingido!")
+                twist.linear.z = 0.0
+
+        except TransformException as ex:
+            # Se o TF falhar temporariamente (ex: inicialização), interrompe movimento por segurança
+            self.get_logger().error(f"Não foi possível obter a transformação base_link -> tool_frame: {ex}")
+            twist.linear.y = 0.0
             twist.linear.z = 0.0
 
-        # Publica o comando de velocidade
+        # 4. Publica a velocidade filtrada
         self.publisher_.publish(twist)
 
 def main(args=None):
