@@ -2,6 +2,7 @@ from fs1.hand_node import *
 import pytest
 import rclpy
 from random import randint,random
+from std_msgs.msg import String
 
 @pytest.fixture
 def hDetect():
@@ -26,12 +27,14 @@ def test_Detector(args=None):
     node = HandNode(cross_mode=True,frame_jump=3,test_mode={"limit":limit})
     try:    
         rclpy.spin_once(node,timeout_sec=limit+1)
-        #node.switch_running(json.dumps({}))
+        
     except KeyboardInterrupt: pass
     finally:
+        msg = String()
+        msg.data = json.dumps({"limit":limit+10,"rez":480,"mzone":60,"dzone":120})
+        node.switch_running(msg)
         dist = node.hand_dist
-        node.destroy_node()
-    
+    runinng = node.is_running
     node.destroy_node()
     rclpy.shutdown()
     assert dist.closed != None
