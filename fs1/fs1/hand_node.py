@@ -57,7 +57,10 @@ class handDist:
         points = self.finger_dists[n]
         if all(p <= 0 for p in points):return False
         return all(points[0]<points[k] for k,v in self.comp_fingers.items())
-
+    @property
+    def toStr2(self):
+        cs = [f"Finger {k:<2}: [{self.closedFinger(k)}]" for k in self.finger_dists]
+        return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in cs)
     @property
     def jDict(self):
         d = {"closed":self.closed,"closed_fingers": [i for i in self.finger_dists if self.closedFinger(i)]}
@@ -66,7 +69,7 @@ class handDist:
         if self.y>0:  d["cima"]    =  self.y
         elif self.y<0:d["baixo"]   = -self.y
         return json.dumps(d)
-       
+    
     def __str__(self):
         #return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"
         cs = []
@@ -115,6 +118,7 @@ class HandNode(Node):
         self.rez = (frame_width,frame_height) # usado na criação da captura, é subistituido pela resolução resultante caso ela seja diferente
         self.center = (limit,limit) # temporario
         self.hand_center = (limit-1,limit-1) #temporario
+        self.hand_points = [(0,0) for _ in range(21)]
 
         self.duos = [(0,1),(0,5),(0,17),(5,9),(9,13),(13,17)]#duplas de pontos para desenhar linhas em um metodo
         self.duos +=[(v+i-1,v+i) for v in set([vl[1] for vl in self.duos]) for i in range(1,4) if v!=0]+[(2,5)]
@@ -142,21 +146,7 @@ class HandNode(Node):
         msg.step = self.frame.shape[1]*3
         msg.data = self.frame.tobytes()
         self.image_pub.publish(msg)
-
-    def _hand_dists(self):#detecta se a mão aparenta estar fechada
-        if hasattr(self,"hand_points"):
-            point = self.hand_points[0] #ponto base
-            fingers = {} #lista de dedos
-            for i in [4*j for j in range(1,6)]:
-                dists = []
-                dists.append(pointDist(self.hand_points[i],point))   #distancia da ponta do dedo com o ponto base
-                dists.append(pointDist(self.hand_points[i-1],point))
-                dists.append(pointDist(self.hand_points[i-2],point))
-                dists.append(pointDist(self.hand_points[i-3],point))
-                fingers[i] = dists
-            
-        else: fingers = {k:[0]*4 for k in[4*j for j in range(1,6)]}
-        return fingers
+        
     
     def _dist_center(self,p,i):#calcula onde o ponto central da mão esta, em relação ao limite das duas zonas
         side = self.rez[i]
@@ -170,12 +160,10 @@ class HandNode(Node):
                 return max((p-(dist))/(dist-self.mzone[i]),-1.0)#distancia entre mão e zona morta/ distancia entra as duas zonas
         return 0
 
-    @property # Verifica se esta rodando
-    def is_running(self): return self._running
-
     def switch_running(self,msg):
         param = json.loads(msg.data)
-        if "frame_jump" in param: self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
+        if "frame_jump" in param: 
+            self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
         if "dzone" in param:
             dead_zone_size = param["dzone"]
             if isinstance(dead_zone_size,list) or isinstance(dead_zone_size,tuple): self.dzone = (dead_zone_size[0]/2,dead_zone_size[1]/2)
@@ -191,12 +179,21 @@ class HandNode(Node):
             elif isinstance(rez,int): self.rez = (rez,rez)
         self._running = not self._running
         if self._running:
-            if "limit" in param: self.run(limit=param["limit"])
-            else: self.run()
+            self.run(limit=param.get("limit",False))
 
     @property
     def hand_dist(self):# cria um objeto handDist
-        fing = self._hand_dists()
+        #distancia dos pontos do dedo
+        point = self.hand_points[0] #ponto base
+        fing = {} #lista de dedos
+        for i in [4*j for j in range(1,6)]:
+            dists = []
+            dists.append(pointDist(self.hand_points[i],point))   #distancia da ponta do dedo com o ponto base
+            dists.append(pointDist(self.hand_points[i-1],point))
+            dists.append(pointDist(self.hand_points[i-2],point))
+            dists.append(pointDist(self.hand_points[i-3],point))
+            fing[i] = dists   
+
         return handDist(round( self._dist_center(float(self.hand_center[0]),0),5),
                         round(-self._dist_center(float(self.hand_center[1]),1),5),
                         finger_dists=fing, comp_fingers={2:1.0})
@@ -213,12 +210,8 @@ class HandNode(Node):
         msg = String()
         msg.data = json.dumps({"STOP":True})
         self.send_hand.publish(msg)
-    def _drawnNoHand(self):
-        (cx,cy) = self.center
-        self._doublePoint((cx,cy),(255,255,255),(0,0,0))#ponto central da tela
-        for p1,p2,color in self.areas:#Cria os retangulos
-            cv.rectangle(self.frame,pt1=p1,pt2=p2,color=color,thickness=3)
-    def _drawnInfo(self,box,cat,id): # publica o estado da mão
+        
+    def _drawnInfo(self,box,id): # publica o estado da mão
         dist = self.hand_dist
         (cx,cy) = self.center
         (x,y) =(int(self.hand_center[0]),int(self.hand_center[1]))
@@ -231,18 +224,18 @@ class HandNode(Node):
         self._doubleLine((cx,cy),(x,cy),(127,127,0),(127,0,255))
         self._doubleLine((x,cy),(x,y),(127,127,0),(127,0,255))
         #desenha um retangulo ao redor dos pontos da mão
-        cv.drawContours(self.frame,[box],contourIdx=0,color=(255,0,0),thickness=2)
+        #cv.drawContours(self.frame,[box],contourIdx=0,color=(255,0,0),thickness=2)
         self._doublePoint((x,y),(0,0,255),(0,255,0),size=3)#ponto central do retangulo
-        cv.putText(self.frame,f"{cat}: {dist}".replace("\t","    "),(x,y),cv.FONT_HERSHEY_PLAIN,1,(0,255,255))#Categoria(Lado) e status da mão
+        cv.putText(self.frame,f"{dist.toStr2}".replace("\t","    "),(10,20),cv.FONT_HERSHEY_PLAIN,1,(255,0,0))#Categoria(Lado) e status da mão
         #desenha linhas entre os dedos da mão
-        for a,b in self.duos: self.frame = cv.line(self.frame,self.hand_points[a],self.hand_points[b],color=(0,255,0))
+        for a,b in self.duos: cv.line(self.frame,self.hand_points[a],self.hand_points[b],color=(0,255,0))
         for p in self.hand_points:#desenha cada ponto da mão e numera eles
-            self.frame = cv.putText(self.frame,f"{self.hand_points.index(p)}",p,cv.FONT_HERSHEY_PLAIN,1,(255,255,0))
-            self.frame = cv.circle(self.frame,p,2,color=(255,0,255),thickness=-1)
-        if self.print_mode: print(f"{id}\n\tSide:{cat}\n\tDist:{dist}")# print para as informações das mãos
+            #cv.putText(self.frame,f"{self.hand_points.index(p)}",p,cv.FONT_HERSHEY_PLAIN,1,(255,255,0))
+            cv.circle(self.frame,p,2,color=(255,0,255),thickness=-1)
         msg = String()
         msg.data = dist.jDict
         self.send_hand.publish(msg)
+        if self.print_mode: print(f"{id}\n\tDist:{dist}")# print para as informações das mãos
         
     def run(self,limit = False):
         self.get_logger().info("Running Detector")
@@ -259,11 +252,8 @@ class HandNode(Node):
         self.get_logger().info(f"REZ: {self.rez}")
         # centro da captura
         self.center = (int(x/2),int(y/2))
-        self.hand_center = (-x,-y) #centro da mão
-        handSwitch = {0:'Left',1:'Right'}#corrige o lado das mãos
         self._running = True
         hand_detected_in_prev = False
-        my = int(self.mzone[1])
         (cx,cy) = self.center#centro da tela
         
         # desenha a zona morta e zona maxima
@@ -276,13 +266,13 @@ class HandNode(Node):
                      (rx+10,cy-int(self.dzone[1])),(0,0,0)),#zona morta
                     ((int(self.mzone[0]),-10),
                      (rx-int(self.mzone[0]),ry+4),(255,255,255)),
-                    ((-10,my),
-                     (rx+10,ry-my),(255,255,255))]#zona maxima
+                    ((-10,int(self.mzone[1])),
+                     (rx+10,ry-int(self.mzone[1])),(255,255,255))]#zona maxima
         else: 
             self.areas = [((cx+int(self.dzone[0]),int(self.dzone[1])+cy),
                      (cx-int(self.dzone[0]),cy-int(self.dzone[1])),(0,0,0)),#zona morta
-                    ((int(self.mzone[0]),my),
-                     (self.rez[0]-int(self.mzone[0]),self.rez[1]-my),(255,255,255))]#zona maxima
+                    ((int(self.mzone[0]),int(self.mzone[1])),
+                     (self.rez[0]-int(self.mzone[0]),self.rez[1]-int(self.mzone[1])),(255,255,255))]#zona maxima
         if self.frame_jump: frame_counter = 0
         if limit: counter = 0
         while self._running:
@@ -296,22 +286,23 @@ class HandNode(Node):
             frame_RGB = mp.Image(mp.ImageFormat.SRGB,cv.cvtColor(self.frame,cv.COLOR_BGR2RGB))
             detected = self.detector.detect(frame_RGB)#resultado da detecção
             size = len(detected.hand_landmarks)
-
-            if size>0:#ignora se nenuma mão for detectada
+            #dezenha as areas e ponto central
+            self._doublePoint(self.center,(255,255,255),(0,0,0))#ponto central da tela
+            for p1,p2,color in self.areas:#Cria os retangulos
+                cv.rectangle(self.frame,pt1=p1,pt2=p2,color=color,thickness=3)
+            if size>0:
                 hand_detected_in_prev = True
                 self.hand_points = [(int(l.x*x),int(l.y*y)) for l in detected.hand_landmarks[0]]#pontos da mão
                 r = cv.minAreaRect(np.array([self.hand_points]))# pega os pontos da  e centro da mão
                 self.hand_center = r[0]#centro da mão
                 box =  cv.boxPoints(r) #pontos da caixa
-                self._drawnInfo(box.astype(np.int64),handSwitch[detected.handedness[0][0].index],"Main Hand Stats:")
-            else:
-                self._drawnNoHand()
-                if hand_detected_in_prev: self.sendSTOP()
+                self._drawnInfo(box.astype(np.int64),"Main Hand Stats:")
+            elif hand_detected_in_prev:#avisa no primeiro frame sem mão
+                self.sendSTOP()
                 hand_detected_in_prev = False
                 
             if self.open_window:cv.imshow('Webcam', self.frame)#mostra a imagem capturada com as alterações feitas
-            self._publish_frame()#publica o mesmo quadro (com as zonas/mão desenhadas) para o front-end
-            #self.send_hand_data()
+            self._publish_frame()#publica o frame (com as zonas/mão desenhadas) para o front-end
             if limit: 
                 print(f"limit {counter}")
                 counter+=1
