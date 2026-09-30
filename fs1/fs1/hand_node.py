@@ -50,17 +50,18 @@ class handDist:
         if all(p <= 0 for points in self.finger_dists.values() for p in points): return False
         for points in self.finger_dists.values():
             #se distancia da ponta do dedo for menor, o dedo é considerado como fechado
-            if all(points[0]<points[k] for k,v in self.comp_fingers.items()): count+=1
+            if all(points[0]<points[k] for k in self.comp_fingers): count+=1
         return count>=4
 
     def closedFinger(self,n):
         points = self.finger_dists[n]
         if all(p <= 0 for p in points):return False
-        return all(points[0]<points[k] for k,v in self.comp_fingers.items())
+        return all(points[0]<points[k] for k in self.comp_fingers)
     @property
-    def toStr2(self):
-        cs = [f"Finger {k:<2}: [{self.closedFinger(k)}]" for k in self.finger_dists]
-        return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in cs)
+    def toStr2(self):                           
+        return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in 
+                                                                                                 [f"Finger {k:<2}: [{self.closedFinger(k)}]" 
+                                                                                                  for k in self.finger_dists])
     @property
     def jDict(self):
         d = {"closed":self.closed,"closed_fingers": [i for i in self.finger_dists if self.closedFinger(i)]}
@@ -314,7 +315,7 @@ class HandNode(Node):
         self.get_logger().info("Detector Closed")
 
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     #d = {"detection":0.4,"presence":0.4,"traking":0.6}
     rclpy.init(args=args)
     node = HandNode(cross_mode=True,frame_jump=3)

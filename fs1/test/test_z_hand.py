@@ -25,8 +25,8 @@ def test_Detector(args=None):
     rclpy.init(args=args)
     limit = 1
     node = HandNode(cross_mode=True,frame_jump=3,test_mode={"limit":limit})
-    try:    
-        rclpy.spin_once(node,timeout_sec=limit+1)
+    
+    try:rclpy.spin_once(node,timeout_sec=limit+1)
         
     except KeyboardInterrupt: pass
     finally:
