@@ -19,16 +19,16 @@ def change_state(state:str,var:str):
             elif "normal" == var: return "MOVING"
         case("PRE-PICK"): 
             if   "move" == var: return "MOVING"
-            elif "pick" == var or "proceed" == var: return "PICKING"
+            elif "pick" == var: return "PICKING"
         case("PICKING"): 
-            if any(k == var for k in ["picked","concluded"]): return "POST-PICK"
+            if "picked" == var: return "POST-PICK"
         case("POST-PICK"): 
-            if any(v == var for v in ["end","concluded"]): return "PLACING"
+            if "place" == var: return "PLACING"
             elif "home" == var or "fail" == var: return "RETURNING"
         case("PLACING"):
-            if any(v == var for v in ["end","concluded"]): return "RETURNING"
+            if "sucess" == var: return "RETURNING"
         case("RETURNING"):
-            if any(v == var for v in ["end","concluded"]): return "HOME"
+            if "sucess" == var: return "HOME"
     return state
 #OFF -> HOME
 #HOME -> MOVING
