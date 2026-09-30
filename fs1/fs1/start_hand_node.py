@@ -29,8 +29,8 @@ class StartHandNode(Node):
         self.activate_handNode()
     def hand_status(self,msg:String):
         d=json.loads(msg.data)
-        self.get_logger().info("reciving")
-        self.get_logger().info(json.dumps(d,indent=0))
+        #self.get_logger().info("reciving")
+        #self.get_logger().info(json.dumps(d,indent=0))
     def activate_handNode(self):
         d = {"frame_jump":3 }
         msg =String()

@@ -112,3 +112,8 @@ def main(args=None):
    rclpy.spin(kinova_instance)
    kinova_instance.destroy_node()
    rclpy.shutdown()
+
+
+
+
+
