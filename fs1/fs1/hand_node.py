@@ -327,5 +327,5 @@ def main(args=None):# pragma: no cover
         node.destroy_node()
         rclpy.shutdown()
 
-if __name__ == "__main__": main()
+if __name__ == "__main__": main()# pragma: no cover
 else: print(f"Other HandD: {__name__}")
