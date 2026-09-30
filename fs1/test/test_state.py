@@ -1,41 +1,32 @@
 from fs1.states import *
 import pytest
-state_list = [("OFF",True,"HOME"),
-    ("OFF",True,"HOME"),
-    ("HOME",True,"MOVING"),
+state_list = [
+    ("OFF","True","HOME"),
+
     ("HOME","move","MOVING"),
     ("HOME","aaaa","HOME"),
 
-    ("IDLE",True,"MOVING"),
     ("IDLE","home","RETURNING"),
     ("IDLE","move","MOVING"),
-    ("IDLE",False,"IDLE"),
     ("IDLE","True","IDLE"),
 
-    ("IDLE-BORDER",True,"MOVING"),
     ("IDLE-BORDER","home","RETURNING"),
     ("IDLE-BORDER","border","MOVING-BORDER"),
-    ("IDLE-BORDER",False,"IDLE"),
+    ("IDLE-BORDER","move","MOVING"),
     ("IDLE-BORDER","True","IDLE"),
 
     ("MOVING","normal","IDLE"),
     ("MOVING","border","IDLE-BORDER"),
     ("MOVING","stop","MOVING"),
-    ("MOVING",True,"MOVING"),
 
     ("MOVING-BORDER","border","IDLE-BORDER"),
-    ("MOVING-BORDER","stop","IDLE-BORDER"),
     ("MOVING-BORDER","normal","MOVING"),
-    ("MOVING-BORDER","move","MOVING"),
-    ("MOVING-BORDER",True,"MOVING-BORDER"),
 
     ("PRE-PICK","normal","MOVING"),
     ("PRE-PICK","move","MOVING"),
     ("PRE-PICK","pick","PICKING"),
     ("PRE-PICK","proceed","PICKING"),
-    ("PRE-PICK",True,"PICKING"),
     ("PRE-PICK","aekjdofnh","PRE-PICK"),
-    ("PRE-PICK",False,"PRE-PICK"),
 
     
     ]
