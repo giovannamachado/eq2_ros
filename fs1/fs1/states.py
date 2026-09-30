@@ -1,36 +1,36 @@
 
-state_list = ["OFF",
-              "HOME","MOVING","IDLE","IDLE-BORDER","MOVING-BODER"
-              "PRE-PICK","PICKING",
-              "PRE-PLACE","PLACING","RETURNING"]
-def change_state(state:str,var:list|bool):
+def change_state(state:str,var:str|bool):
     if var:
         match(state):
             case("OFF"): return "HOME"
             case("HOME"): 
-                if isinstance(var,bool) or "move" in var: return "MOVING"
+                if isinstance(var,bool) or "move" == var: return "MOVING"
             case("IDLE"): 
-                if isinstance(var,bool) or "move" in var: return "MOVING"
+                if isinstance(var,bool) or "move" == var: return "MOVING"
+                elif isinstance(var,str) and "home" == var: return "RETURNING"
             case("IDLE-BORDER"): 
-                if isinstance(var,bool) or "move" in var: return "MOVING-BODER"
+                if isinstance(var,bool) or "move" == var: return "MOVING-BODER"
+                elif isinstance(var,str) and "home" == var: return "RETURNING"
             case("MOVING"): 
-                if isinstance(var,list):
-                    if   "normal" in var: return "IDLE"
-                    elif "border" in var: return "IDLE-BORDER"
+                if isinstance(var,str):
+                    if   "normal" == var: return "IDLE"
+                    elif "border" == var: return "IDLE-BORDER"
             case("MOVING-BODER"): 
-                if isinstance(var,list):
-                    if   any(k in var for k in ["border","stop"]): return "IDLE-BORDER"
-                    elif any(k in var for k in ["normal","move"]): return "IDLE-BORDER"
+                if isinstance(var,str):
+                    if   any(k == var for k in ["border","stop"]): return "IDLE-BORDER"
+                    elif any(k == var for k in ["normal","move"]): return "IDLE-BORDER"
             case("PRE-PICK"): 
-                return "HOME"
+                if isinstance(var,str) and any(k == var for k in ["normal","move"]): return "MOVING"
+                elif isinstance(var,bool) or ("pick" == var or "proceed" == var): return "PICKING"
             case("PICKING"): 
-                return "HOME"
-            case("PRE-PLACE"): 
-                if any(v in var for v in ["end",True,"concluded"]): return "PLACING"
+                if isinstance(var,bool) or any(k == var for k in ["picked","concluded"]): return "POST-PICK"
+            case("POST-PICK"): 
+                if any(v == var for v in ["end","concluded"]): return "PLACING"
+                elif isinstance(var,str) and ("home" == var or "fail" == var): return "RETURNING"
             case("PLACING"):
-                if any(v in var for v in ["end",True,"concluded"]): return "RETURNING"
+                if any(v == var for v in ["end","concluded"]): return "RETURNING"
             case("RETURNING"):
-                if any(v in var for v in ["end",True,"concluded"]): return "HOME"
+                if any(v == var for v in ["end","concluded"]): return "HOME"
 #OFF -> HOME
 #HOME -> MOVING
 #MOVING <> IDLE
@@ -39,6 +39,9 @@ def change_state(state:str,var:list|bool):
 #MOVING-BODER -> MOVING
 #MOVING <> PRE-PICK
 #PRE-PICK -> PICKING
-#PICKING -> PRE-PLACE
-#PRE-PLACE -> PLACING
+#PICKING -> POST-PICK
+#POST-PICK -> PLACING
 #PLACING -> RETURNING -> HOME
+#POST-PICK -> RETURNING -> HOME
+#IDLE -> RETURNING -> HOME
+#IDLE-BORDER -> RETURNING -> HOME
