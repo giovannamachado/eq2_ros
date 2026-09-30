@@ -133,9 +133,9 @@ class VisionNode(Node):
 
         self.frame_count += 1
 
-        if self.frame_count % 10 != 0:
+        if self.frame_count % 15 != 0:
 
-            return
+           return
 
         image_msg = self.bridge.cv2_to_imgmsg( frame, encoding="bgr8" )
 

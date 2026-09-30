@@ -87,7 +87,7 @@ class HandNode(Node):
                 task_path =  None,#caminho para o arquivo tsak do mediapipe
                 confidence={"detection":0.5,"presence":0.5,"traking":0.5},#variaveis de confiança do modelo do mediapipe
                 limit= -100,#Quão fora do quadro o centro da mão deve estar para ser desconsiderado
-                frame_jump = 0,
+                frame_jump = 3,
 
                 cross_mode = False,#O modo de exibição das zonas da imagem
                 print_mode = False,
