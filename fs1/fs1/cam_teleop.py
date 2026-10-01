@@ -17,24 +17,37 @@ class CamTeleop(Node):
         self.subscriber_cam_node = self.create_subscription(String, '/hand_status', self.recebi_mensagem, 10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
         
-        # Tópico para receber o comando de mudar de cubo
+        # Mantido para compatibilidade caso queira usar o antigo
         self.sub_cubo_alvo = self.create_subscription(
             String, '/ir_para_cubo', self.callback_mudar_alvo, 10
         )
+        
+        # Tópico responsável APENAS por atualizar a variável cubo_alvo_id
+        self.sub_escolher_cubo = self.create_subscription(
+            String, '/escolher_cubo', self.callback_escolher_cubo, 10
+        )
+
         self.speed = 1.0
 
+        # Publisher para mandar mensagens ao nó de controle de garra
+        self.publisher_gripper_controller = self.create_publisher(String, '/controlador_garra', 10)
+        
         # --- Inicialização do TF2 Listener ---
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        # --- Variáveis do Controlador Autónomo ---
+        # --- Variáveis do Controlador Autônomo ---
         self.cubo_alvo_id = None
-        self.fase_controle = 'ALINHAR_YZ'  # Modos: 'ALINHAR_YZ' ou 'AVANCAR_X'
+        self.fase_controle = 'ALINHAR_YZ'  # Estados: 'ALINHAR_YZ', 'AVANCAR_X', 'FECHAR_GARRA', 'RECUAR_X', 'RETORNAR_YZ'
+        self.posicao_inicial = None        # Armazena (x, y, z) de onde o movimento começou
+        self.contador_espera_garra = 0     # Contador para dar tempo da garra fechar
+        self.executando_sequencia = False  # Flag para controlar quando o loop sequencial roda
+        
         self.kp = 2.0          # Ganho proporcional
         self.v_max = 0.15      # Velocidade máxima permitida em m/s
         self.tolerancia = 0.005 # Tolerância de parada (5 milímetros)
 
-        # Timer apontando para o NOVO controlador sequencial
+        # Timer apontando para o controlador sequencial
         self.control_timer = self.create_timer(0.05, self.loop_controle_sequencial)
 
         # --- Definição dos Limites (em metros no referencial do base_link) ---
@@ -59,69 +72,17 @@ class CamTeleop(Node):
         self.tolerancia_z = 0.2
         self.raio_maximo_2d = 0.025
 
-
-
-
-    def loop_controle_autonomo(self):
-        """Malha de controle proporcional para mover o robô até o cubo selecionado."""
-        if self.cubo_alvo_id is None:
-            return  # Nenhum alvo ativo
-
-        try:
-            # 1. Leitura da posição atual
-            transform = self.tf_buffer.lookup_transform(
-                'base_link', 'tool_frame', rclpy.time.Time()
-            )
-            x_atual = transform.transform.translation.x
-            y_atual = transform.transform.translation.y
-            z_atual = transform.transform.translation.z
-
-            # 2. Posição Alvo
-            x_alvo, y_alvo, z_alvo = self.posicoes_cubos[self.cubo_alvo_id]
-
-            # 3. Cálculo dos erros por eixo
-            erro_y = y_alvo - y_atual
-            erro_z = z_alvo - z_atual
-            erro_x = x_alvo - x_atual
-
-            # Erro de distância nos eixos Y e Z
-            distancia_yz = math.sqrt(erro_y**2 + erro_z**2)
-
-            # 4. Condição de Parada (Chegou ao Alvo)
-            if distancia_yz <= self.tolerancia:
-                self.get_logger().info(f"Alvo atingido! Cubo {self.cubo_alvo_id} alcançado.")
-                self.cubo_alvo_id = None
-                self.publisher_.publish(Twist())  # Publica 0 para parar o robô
-                return
-
-            # 5. Controlador Proporcional (P) com Saturação de Velocidade
-            twist = Twist()
-            
-            # Velocidades calculadas
-            vy = self.kp * erro_y
-            vz = self.kp * erro_z
-            vx = self.kp * erro_x
-
-            # Aplicação dos limites de velocidade (+/- v_max)
-            twist.linear.y = max(min(vy, self.v_max), -self.v_max)
-            twist.linear.z = max(min(vz, self.v_max), -self.v_max)
-            twist.linear.x = max(min(vx, self.v_max), -self.v_max)
-
-            # Publica os comandos de velocidade para o robô
-            self.publisher_.publish(twist)
-
-        except TransformException as ex:
-            self.get_logger().warn(f"Aguardando TF2 para navegação: {ex}")
-    
-
     def loop_controle_sequencial(self):
         """
-        Controlador em duas etapas:
-        1ª Etapa ('ALINHAR_YZ'): Ajusta apenas a altura (Z) e posição lateral (Y), com Vx = 0.
-        2ª Etapa ('AVANCAR_X'): Com Y e Z já alinhados, avança exclusivamente no eixo X.
+        Ciclo completo de pegada do cubo (só roda se executando_sequencia for True):
+        1. ALINHAR_YZ   : Alinha Y e Z na frente do cubo target.
+        2. AVANCAR_X    : Avança em X até encostar/entrar no cubo.
+        3. FECHAR_GARRA : Envia comando de fechar garra e aguarda 1s.
+        4. RECUAR_X     : Recua em X até o X original de partida.
+        5. RETORNAR_YZ  : Retorna Y e Z até a posição original de partida.
         """
-        if self.cubo_alvo_id is None:
-            return  # Nenhum alvo ativo
+        if not self.executando_sequencia or self.cubo_alvo_id is None:
+            return
 
         try:
             # 1. Leitura da posição atual via TF2
@@ -132,66 +93,124 @@ class CamTeleop(Node):
             y_atual = transform.transform.translation.y
             z_atual = transform.transform.translation.z
 
-            # 2. Posição Alvo
+            # Salva a posição inicial exata de partida se ainda não capturada
+            if self.posicao_inicial is None:
+                self.posicao_inicial = (x_atual, y_atual, z_atual)
+                self.get_logger().info(f"📍 Posição inicial gravada: X={x_atual:.3f}, Y={y_atual:.3f}, Z={z_atual:.3f}")
+
+            # 2. Posição Alvo do Cubo
             x_alvo, y_alvo, z_alvo = self.posicoes_cubos[self.cubo_alvo_id]
+            x_init, y_init, z_init = self.posicao_inicial
 
-            # 3. Cálculo dos erros por eixo
-            erro_x = x_alvo - x_atual
-            erro_y = y_alvo - y_atual
-            erro_z = z_alvo - z_atual
-
-            distancia_yz = math.sqrt(erro_y**2 + erro_z**2)
             twist = Twist()
 
-            # --- ETAPA 1: Alinhamento em Y e Z ---
+            # --- ETAPA 1: Alinhamento Y e Z ---
             if self.fase_controle == 'ALINHAR_YZ':
+                erro_y = y_alvo - y_atual
+                erro_z = z_alvo - z_atual
+                distancia_yz = math.sqrt(erro_y**2 + erro_z**2)
+
                 if distancia_yz <= self.tolerancia:
-                    self.get_logger().info(f"🎯 Eixos Y e Z alinhados! Iniciando avanço no eixo X para o {self.cubo_alvo_id}...")
+                    self.get_logger().info(f"🎯 Y e Z alinhados! Avançando no eixo X para o {self.cubo_alvo_id}...")
                     self.fase_controle = 'AVANCAR_X'
-                    self.publisher_.publish(Twist())  # Breve parada de transição
+                    self.publisher_.publish(Twist())
                     return
 
-                # Calcula apenas Vy e Vz (Vx zerado)
                 vy = self.kp * erro_y
                 vz = self.kp * erro_z
-
                 twist.linear.x = 0.0
                 twist.linear.y = max(min(vy, self.v_max), -self.v_max)
                 twist.linear.z = max(min(vz, self.v_max), -self.v_max)
 
             # --- ETAPA 2: Avanço no eixo X ---
             elif self.fase_controle == 'AVANCAR_X':
+                erro_x = x_alvo - x_atual
+
                 if abs(erro_x) <= self.tolerancia:
-                    self.get_logger().info(f"✅ Alvo atingido! {self.cubo_alvo_id} alcançado com sucesso.")
-                    self.cubo_alvo_id = None
-                    self.fase_controle = 'ALINHAR_YZ'  # Reset de estado
-                    self.publisher_.publish(Twist())   # Parar o robô
+                    self.get_logger().info(f"✅ Chegou ao alvo! Fechando a garra...")
+                    self.fase_controle = 'FECHAR_GARRA'
+                    self.contador_espera_garra = 0
+                    self.publisher_.publish(Twist())
                     return
 
-                # Calcula apenas Vx (Vy e Vz zerados)
                 vx = self.kp * erro_x
-
                 twist.linear.x = max(min(vx, self.v_max), -self.v_max)
                 twist.linear.y = 0.0
                 twist.linear.z = 0.0
 
-            # Publica o comando de velocidade correspondente à etapa atual
+            # --- ETAPA 3: Fechar a Garra ---
+            elif self.fase_controle == 'FECHAR_GARRA':
+                msg_garra = String()
+                msg_garra.data = 'abrir'
+                self.publisher_gripper_controller.publish(msg_garra)
+
+                self.contador_espera_garra += 1
+                if self.contador_espera_garra >= 20:
+                    self.get_logger().info(f"✊ Garra fechada! Recuando no eixo X...")
+                    self.fase_controle = 'RECUAR_X'
+                return
+
+            # --- ETAPA 4: Recuar no eixo X ---
+            elif self.fase_controle == 'RECUAR_X':
+                erro_x = x_init - x_atual
+
+                if abs(erro_x) <= self.tolerancia:
+                    self.get_logger().info(f"↩️ Recuo em X concluído. Retornando eixos Y e Z para a origem...")
+                    self.fase_controle = 'RETORNAR_YZ'
+                    self.publisher_.publish(Twist())
+                    return
+
+                vx = self.kp * erro_x
+                twist.linear.x = max(min(vx, self.v_max), -self.v_max)
+                twist.linear.y = 0.0
+                twist.linear.z = 0.0
+
+            # --- ETAPA 5: Retornar Y e Z para a Posição Inicial ---
+            elif self.fase_controle == 'RETORNAR_YZ':
+                erro_y = y_init - y_atual
+                erro_z = z_init - z_atual
+                distancia_yz = math.sqrt(erro_y**2 + erro_z**2)
+
+                if distancia_yz <= self.tolerancia:
+                    self.get_logger().info(f"🏠 Ciclo concluído! Robô retornou com sucesso à posição inicial.")
+                    msg_garra = String()
+                    msg_garra.data = 'fechar'
+                    self.publisher_gripper_controller.publish(msg_garra)
+
+                    # Reseta variáveis e desativa a sequência
+                    self.executando_sequencia = False
+                    self.posicao_inicial = None
+                    self.fase_controle = 'ALINHAR_YZ'
+                    self.publisher_.publish(Twist())
+                    return
+
+                vy = self.kp * erro_y
+                vz = self.kp * erro_z
+                twist.linear.x = 0.0
+                twist.linear.y = max(min(vy, self.v_max), -self.v_max)
+                twist.linear.z = max(min(vz, self.v_max), -self.v_max)
+
             self.publisher_.publish(twist)
 
         except TransformException as ex:
             self.get_logger().warn(f"Aguardando TF2 para navegação: {ex}")
 
     def callback_mudar_alvo(self, msg: String):
-        """Callback acionado ao receber a mensagem de seleção no tópico /ir_para_cubo."""
-        # Trata entrada em texto (ex: "Cubo: 04" ou "Cubo 04")
         texto_recebido = msg.data.replace(":", "").strip()
-        
         if texto_recebido in self.posicoes_cubos:
             self.cubo_alvo_id = texto_recebido
-            self.fase_controle = 'ALINHAR_YZ'  # Garante que a sequência sempre inicie pelo YZ
-            self.get_logger().info(f"🤖 Novo alvo definido: {self.cubo_alvo_id}. Iniciando alinhamento Y/Z...")
+            self.get_logger().info(f"📌 Cubo alvo alterado para: {self.cubo_alvo_id} (Sem movimento automático)")
         else:
-            self.get_logger().error(f"Alvo '{msg.data}' inválido! Use chaves como 'Cubo 01' até 'Cubo 08'.")
+            self.get_logger().error(f"Alvo '{msg.data}' inválido!")
+
+    def callback_escolher_cubo(self, msg: String):
+        """Atualiza APENAS a variável cubo_alvo_id, sem executar nenhuma rotina."""
+        texto_recebido = msg.data.strip()
+        if texto_recebido in self.posicoes_cubos:
+            self.cubo_alvo_id = texto_recebido
+            self.get_logger().info(f"📌 [Tópico /escolher_cubo] cubo_alvo_id definido para: {self.cubo_alvo_id}")
+        else:
+            self.get_logger().warn(f"Tentativa de escolher cubo inválido: '{texto_recebido}'")
 
     def verificar_alinhamento_cubo(self) -> tuple | None:
         try:
@@ -228,6 +247,22 @@ class CamTeleop(Node):
         if alinhamento:
             cubo, dist, pos = alinhamento
             self.get_logger().info(f"ALINHADO COM {cubo}!")
+
+        # --- VERIFICAÇÃO DO COMANDO DE MÃO FECHADA ---
+        if dados.get("closed") is True:
+            self.get_logger().info("✊ Detectado 'closed': true no hand_status.")
+            
+            # Verifica se está alinhado com o cubo alvo atual
+            if alinhamento and alinhamento[0] == self.cubo_alvo_id:
+                self.get_logger().info(f"✅ Alinhado com o cubo alvo ({self.cubo_alvo_id}). Iniciando loop de controle sequencial!")
+                self.fase_controle = 'ALINHAR_YZ'
+                self.posicao_inicial = None
+                self.executando_sequencia = True
+                return
+            else:
+                self.get_logger().warn(f"❌ Não está alinhado com o cubo alvo ('{self.cubo_alvo_id}'). Executando movimento de 'frente e trás'...")
+                self.executar_movimento_frente_tras_metade()
+                return
 
         twist = Twist()
 
@@ -270,6 +305,53 @@ class CamTeleop(Node):
             twist.linear.z = 0.0
 
         self.publisher_.publish(twist)
+
+    def executar_movimento_frente_tras_metade(self):
+        """Move o robô até a metade do caminho do eixo X em relação ao cubo alvo e retorna."""
+        if not self.cubo_alvo_id or self.cubo_alvo_id not in self.posicoes_cubos:
+            self.get_logger().error("Nenhum cubo alvo válido definido para o movimento de frente e trás.")
+            return
+
+        try:
+            transform = self.tf_buffer.lookup_transform('base_link', 'tool_frame', rclpy.time.Time())
+            x_atual = transform.transform.translation.x
+            x_alvo, _, _ = self.posicoes_cubos[self.cubo_alvo_id]
+            
+            x_metade = x_atual + (x_alvo - x_atual) / 2.0
+            
+            self.get_logger().info(f"🔄 Indo até a metade do caminho em X ({x_metade:.3f})...")
+            twist = Twist()
+            
+            # Avança até a metade
+            while rclpy.ok():
+                t = self.tf_buffer.lookup_transform('base_link', 'tool_frame', rclpy.time.Time())
+                x_curr = t.transform.translation.x
+                erro = x_metade - x_curr
+                if abs(erro) < 0.005:
+                    break
+                twist.linear.x = max(min(self.kp * erro, self.v_max), -self.v_max)
+                self.publisher_.publish(twist)
+                rclpy.spin_once(self, timeout_sec=0.05)
+            
+            self.publisher_.publish(Twist())
+            
+            # Retorna para o ponto inicial
+            self.get_logger().info("↩️ Retornando para a posição inicial de X...")
+            while rclpy.ok():
+                t = self.tf_buffer.lookup_transform('base_link', 'tool_frame', rclpy.time.Time())
+                x_curr = t.transform.translation.x
+                erro = x_atual - x_curr
+                if abs(erro) < 0.005:
+                    break
+                twist.linear.x = max(min(self.kp * erro, self.v_max), -self.v_max)
+                self.publisher_.publish(twist)
+                rclpy.spin_once(self, timeout_sec=0.05)
+                
+            self.publisher_.publish(Twist())
+            self.get_logger().info("✨ Movimento de frente e trás concluído.")
+
+        except TransformException as ex:
+            self.get_logger().error(f"Erro no TF2 durante movimento de frente e trás: {ex}")
 
 
 def main(args=None):

@@ -122,6 +122,7 @@ class Supervisor(Node):
         self.declare_parameter('drop_place_s', DEFAULT_DROP_PLACE_S)
         self.declare_parameter('drop_retreat_s', DEFAULT_DROP_RETREAT_S)
 
+
         self.state = State.IDLE
         self.selected_slot = None
         self.message = 'Sistema em repouso.'
@@ -144,6 +145,7 @@ class Supervisor(Node):
         # Só é usado durante TELEOP, para disparar a pega automática (RF#06).
         self.create_subscription(
             String, '/hand_status', self._on_hand_status, 10)
+        
 
         self.create_timer(STATE_HEARTBEAT_S, self._publish_state)
         self._publish_state()
@@ -320,6 +322,10 @@ class Supervisor(Node):
         self._set_state(
             State.TELEOP,
             f'Pegue a peça {color} do slot {self.selected_slot}.')
+        
+        msg = String()
+        msg.data = random.choice(sorted(occupied))
+        self.state_pub.publish(msg)
 
     def _stop(self):
         """Any state -> IDLE: cancel pending work and return to HOME."""

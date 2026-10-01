@@ -54,6 +54,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    gripper_client_node = Node(
+        package=pkg_name,
+        executable='gripper_client',
+        name='gripper_client',
+        output='screen'
+    )
+
+    gripper_control_node = Node(
+        package=pkg_name,
+        executable='gripper_control',
+        name='gripper_control',
+        output='screen'
+    )
+
     # Nó Servo Adapter
     servo_adapter_node = Node(
         package=pkg_name,
@@ -92,5 +106,7 @@ def generate_launch_description():
         servo_adapter_node,
         cam_teleop_node,
         hand_node,
-        start_hand_node
+        start_hand_node,
+        gripper_client_node,
+        gripper_control_node
     ])

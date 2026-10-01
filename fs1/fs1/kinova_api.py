@@ -85,23 +85,23 @@ class KinovaApi(Node):
         msg = String()
         msg.data = 'abrir' 
 
-    def put_in_box_function(self):
-        """Carry the held piece to the drop: pre_place -> place -> open -> HOME."""
-        msg = String()
-        msg.data = json.dumps(pre_place)
-        self.publisher_controlador_juntas.publish(msg)
-        time.sleep(9)
-        msg = String()
-        msg.data = json.dumps(place)
-        self.publisher_controlador_juntas.publish(msg)
-        time.sleep(9)
-        msg.data='abrir'
-        self.publisher_gripper_controller.publish(msg)
-        msg=String()
-        msg.data = json.dumps(home)
-        self.publisher_controlador_juntas.publish(msg)
-        
-        
+        def put_in_box_function(self):
+            """Carry the held piece to the drop: pre_place -> place -> open -> HOME."""
+            msg = String()
+            msg.data = json.dumps(pre_place)
+            self.publisher_controlador_juntas.publish(msg)
+            time.sleep(9)
+            msg = String()
+            msg.data = json.dumps(place)
+            self.publisher_controlador_juntas.publish(msg)
+            time.sleep(9)
+            msg.data='abrir'
+            self.publisher_gripper_controller.publish(msg)
+            msg=String()
+            msg.data = json.dumps(home)
+            self.publisher_controlador_juntas.publish(msg)
+            
+            
 def main(args=None):
    """Entry point: run the fixed photo -> pick -> place demo once."""
    rclpy.init(args=args)
