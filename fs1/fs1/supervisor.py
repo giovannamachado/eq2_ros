@@ -370,7 +370,7 @@ class Supervisor(Node):
         self._set_state(State.IDLE, 'Operação interrompida. Robô em HOME.')
 
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     """Entry point for the supervisor node."""
     rclpy.init(args=args)
     node = Supervisor()
@@ -383,5 +383,5 @@ def main(args=None):
         rclpy.shutdown()
 
 
-if __name__ == '__main__':# pragma: no cover
+if __name__ == '__main__':
     main()

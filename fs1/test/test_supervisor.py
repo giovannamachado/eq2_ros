@@ -12,7 +12,7 @@ import pytest  # noqa: E402
 import rclpy  # noqa: E402
 from std_msgs.msg import String  # noqa: E402
 
-from fs1.kinova_api import home, place, pre_place  # noqa: E402
+#from fs1.kinova_api import home, place, pre_place  # noqa: E402
 from fs1.supervisor import (  # noqa: E402
     State,
     Supervisor,
@@ -21,7 +21,7 @@ from fs1.supervisor import (  # noqa: E402
     parse_command,
 )
 
-
+home= [-19.0, 2.0, 131.0, 61.0, -44.0, -68.0] 
 def shelf(**occupied):
     """Build a /shelf_state sample, e.g. ``shelf(p2='green')``."""
     slots = []

@@ -25,15 +25,11 @@ class StartHandNode(Node):
         self.get_logger().info("Test node started.")
         self.activate_handNode()
     def hand_status(self,msg:String):
-        """"quando ativada, 
-        imprime ou loga as mensagens enviadas em
-        /hand_status"""
         """Parse an incoming ``/hand_status`` message (no-op, kept for manual testing)."""
         d=json.loads(msg.data)
         self.get_logger().info("reciving")
         self.get_logger().info(json.dumps(d,indent=0))
     def activate_handNode(self):
-        """Ativa o detector de hand node"""
         """Publish the ``/switchHandDetection`` command that turns hand_node on."""
         d = {"frame_jump":3 }
         msg =String()
