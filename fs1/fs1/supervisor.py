@@ -49,6 +49,7 @@ from enum import Enum
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+from std_srvs.srv import Trigger
 
 from fs1.kinova_api import home, place, pre_place
 
@@ -150,6 +151,21 @@ class Supervisor(Node):
         self.choose_cube_pub = self.create_publisher(
             String, '/escolher_cubo', 10)
 
+        # fs1.cam_teleop usa o MoveIt Servo (via fs1.servo_adapter) para o
+        # movimento de twist da pega, e o Servo publica JointTrajectory no
+        # MESMO tópico que o joints_control usa para HOME/pre_place/place
+        # (/joint_trajectory_controller/joint_trajectory, ver servo_config.yaml
+        # do kortex_servo). O Servo nunca é desligado depois da pega, então
+        # sem pausá-lo explicitamente ele briga com os comandos de DROP e o
+        # braço não termina o pre_place/place. pause/unpause_servo são
+        # serviços do próprio moveit_servo; se claw_machine.launch.py (ou o
+        # próprio servo_node) não estiver rodando -- ex. nos testes --
+        # service_is_ready() é False e simplesmente seguimos sem pausar.
+        self._pause_servo_cli = self.create_client(
+            Trigger, '/servo_node/pause_servo')
+        self._unpause_servo_cli = self.create_client(
+            Trigger, '/servo_node/unpause_servo')
+
         self.create_subscription(
             String, '/supervisor/command', self._on_command, 10)
         self.create_subscription(
@@ -201,6 +217,22 @@ class Supervisor(Node):
             self.destroy_timer(self._transition_timer)
             self._transition_timer = None
 
+    def _call_servo(self, client, name):
+        """Fire-and-forget a pause/unpause_servo Trigger call, if available."""
+        if not client.service_is_ready():
+            self.get_logger().warn(
+                f'/servo_node/{name} indisponível; seguindo sem pausar o Servo.')
+            return
+        future = client.call_async(Trigger.Request())
+
+        def log_result(f, name=name):
+            try:
+                self.get_logger().info(f'{name}: {f.result()}')
+            except Exception as exc:
+                self.get_logger().warn(f'{name} falhou: {exc}')
+
+        future.add_done_callback(log_result)
+
     def _go_home(self, open_gripper):
         """Send the robot to the HOME pose, optionally opening the gripper."""
         joints = String()
@@ -238,9 +270,11 @@ class Supervisor(Node):
         result = msg.data.strip().lower()
         if result == 'success':
             self._picking = True
+            self._call_servo(self._pause_servo_cli, 'pause_servo')
             self._drop_approach()
         elif result == 'failure':
             self._picking = True
+            self._call_servo(self._pause_servo_cli, 'pause_servo')
             self._set_state(
                 State.FAILURE,
                 f'Gesto fora do slot {self.selected_slot}. Voltando para HOME.')
@@ -322,6 +356,8 @@ class Supervisor(Node):
         # saber se o gesto de fechar a mão aconteceu no lugar certo.
         self.choose_cube_pub.publish(
             String(data=cube_label(self.selected_slot)))
+        # Religa o Servo para o próximo ciclo de twist (ver _on_pick_result).
+        self._call_servo(self._unpause_servo_cli, 'unpause_servo')
 
     def _stop(self):
         """Any state -> IDLE: cancel pending work and return to HOME."""
