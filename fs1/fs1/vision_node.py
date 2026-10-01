@@ -47,7 +47,11 @@ class VisionNode(Node):
         self.image_publisher = self.create_publisher(Image, "/camera/image", 10)
 
         self.bridge = CvBridge()
-        self.camera = cv2.VideoCapture(camera_index)
+        # cv2.CAP_V4L2 explícito: sem isso, quando camera_index é uma string
+        # (caminho /dev/v4l/by-id/...), o OpenCV tenta abrir pelo backend
+        # GStreamer via uridecodebin (como se fosse uma URI de mídia) e falha
+        # -- o caminho é um device node, não uma URI.
+        self.camera = cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
 
         self.detector = create_detector()
         self.frame_count = 0

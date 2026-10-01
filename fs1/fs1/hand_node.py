@@ -241,7 +241,10 @@ class HandNode(Node):
     def run(self,limit = False):
         self.get_logger().info("Running Detector")
         #cap = cv.VideoCapture(0, cv.CAP_DSHOW)
-        cap = cv.VideoCapture(self.camera_index)
+        # cv.CAP_V4L2 explícito: ver vision_node.py (mesma correção -- sem
+        # isso, um camera_index em string cai no backend GStreamer e falha
+        # com "uridecodebin" ao tentar abrir um device node V4L2 por path).
+        cap = cv.VideoCapture(self.camera_index, cv.CAP_V4L2)
         #tenta configurar a resolução da captura, (geralmente resulta em um valor menor)
         cap.set(cv.CAP_PROP_FRAME_HEIGHT, self.rez[1])
         cap.set(cv.CAP_PROP_FRAME_WIDTH, self.rez[0])

@@ -1,6 +1,11 @@
 #!/bin/bash
 # Sobe tudo de uma vez: container (se precisar), backend ROS (vision_node,
-# supervisor, rosbridge, teleop...) e o hand_node (webcam do operador).
+# supervisor, rosbridge...), o controle físico (MoveIt Servo, cam_teleop,
+# garra) e o hand_node (webcam do operador).
+#
+# NÃO sobe o driver do braço (kortex_bringup/gen3_lite.launch.py) -- isso
+# precisa do IP real do robô, que este script não conhece. Suba-o à parte,
+# ANTES de rodar este script.
 #
 # Rode este script no HOST (fora do container), de dentro da pasta eq2_ros.
 # Ele entra e sai do container sozinho via `docker exec` — você não precisa
@@ -28,7 +33,7 @@ fail() { echo -e "\033[1;31mERRO:\033[0m $*" >&2; exit 1; }
 
 
 # ---------------------------------------------------------------------------
-log "1/6 Container"
+log "1/7 Container"
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
    if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER"; then
        echo "Container parado, iniciando..."
@@ -50,13 +55,13 @@ dexec_bg() { docker exec -d "$CONTAINER" bash -lc "$1"; }
 
 
 # ---------------------------------------------------------------------------
-log "2/6 Compilando fs1"
+log "2/7 Compilando fs1"
 dexec 'source /opt/ros/humble/setup.bash && cd /app/project_ws && colcon build --symlink-install --packages-select fs1' \
    || fail "colcon build falhou"
 
 
 # ---------------------------------------------------------------------------
-log "3/6 Detectando a câmera do robô"
+log "3/7 Detectando a câmera do robô"
 # Procura qualquer by-id de câmera que NÃO seja a webcam integrada, testando
 # cada interface até achar uma que realmente devolve um frame. Se não achar
 # nenhuma externa, cai no índice 0 (só a integrada mesmo).
@@ -75,7 +80,10 @@ for path in sorted(glob.glob("/dev/v4l/by-id/*-video-index*")):
 
 
 for path in candidates:
-   cap = cv2.VideoCapture(path)
+   # CAP_V4L2 explícito: sem isso, uma string (device path) cai no backend
+   # GStreamer e falha com "uridecodebin" em vez de abrir o device de verdade,
+   # fazendo a detecção achar que a câmera não funciona.
+   cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
    ok, _ = cap.read()
    cap.release()
    if ok:
@@ -93,7 +101,7 @@ echo "Usando camera_index=$CAMERA_INDEX para o vision_node (câmera do robô)."
 
 
 # ---------------------------------------------------------------------------
-log "4/6 Subindo o backend (rosbridge, supervisor, vision_node, teleop...)"
+log "4/7 Subindo o backend (rosbridge, supervisor, vision_node...)"
 dexec 'pkill -f "[r]os2 launch fs1 frontend.launch.py"; pkill -f "[i]nstall/fs1/lib/fs1"; pkill -f "[r]osbridge_websocket"; pkill -f "[i]mage_transport/republish"' >/dev/null 2>&1
 sleep 1
 dexec_bg "source /opt/ros/humble/setup.bash && source /app/project_ws/install/setup.bash && ros2 launch fs1 frontend.launch.py camera_index:=$CAMERA_INDEX > /tmp/frontend.log 2>&1"
@@ -102,7 +110,18 @@ dexec 'source /opt/ros/humble/setup.bash; ros2 daemon stop >/dev/null 2>&1; ros2
 
 
 # ---------------------------------------------------------------------------
-log "5/6 Preparando o hand_node (câmera do operador)"
+log "5/7 Subindo o controle físico (MoveIt Servo, cam_teleop, garra)"
+# Requer o driver do braço (kortex_bringup) já rodando à parte, com o IP
+# real do robô -- este script não sabe qual IP vocês usam, então isso fica
+# de fora (ver instruções de laboratório).
+dexec 'pkill -f "[r]os2 launch fs1 claw_machine.launch.py"; pkill -f "[s]ervo_node_main"; pkill -f "[s]ervo_adapter"; pkill -f "[C]amTeleop"; pkill -f "[g]ripper_client"; pkill -f "[g]ripper_control"' >/dev/null 2>&1
+sleep 1
+dexec_bg "source /opt/ros/humble/setup.bash && source /app/workspace/ros2_kortex_ws/install/setup.bash && source /app/project_ws/install/setup.bash && ros2 launch fs1 claw_machine.launch.py > /tmp/claw_machine.log 2>&1"
+sleep 3
+
+
+# ---------------------------------------------------------------------------
+log "6/7 Preparando o hand_node (câmera do operador)"
 if ! dexec 'test -x /opt/handvenv/bin/python3' 2>/dev/null; then
    echo "Ambiente do mediapipe não existe ainda neste container — instalando (só acontece uma vez por container)..."
    dexec 'apt-get update -qq' || fail "apt-get update falhou (sem internet?)"
@@ -132,9 +151,10 @@ dexec 'source /opt/ros/humble/setup.bash; ros2 topic pub --once /switchHandDetec
 
 
 # ---------------------------------------------------------------------------
-log "6/6 Pronto"
-echo "Backend:    docker exec $CONTAINER tail -f /tmp/frontend.log"
-echo "Hand node:  docker exec $CONTAINER tail -f /tmp/hand_node.log"
+log "7/7 Pronto"
+echo "Backend:       docker exec $CONTAINER tail -f /tmp/frontend.log"
+echo "Controle físico: docker exec $CONTAINER tail -f /tmp/claw_machine.log"
+echo "Hand node:     docker exec $CONTAINER tail -f /tmp/hand_node.log"
 echo
 echo "Agora abra o front, em outro terminal:"
 echo "  cd ../eq2_front && flutter run -d chrome"
