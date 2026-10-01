@@ -155,7 +155,7 @@ class ServoAdapter(Node):
         
         self.servo_pub.publish(new_msg)
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     """Entry point for the Servo Interface node."""
     rclpy.init(args=args)
     node = ServoAdapter()
@@ -168,5 +168,5 @@ def main(args=None):
         node.destroy_node()
         rclpy.shutdown()
 
-if __name__ == '__main__':# pragma: no cover
+if __name__ == '__main__':
     main()

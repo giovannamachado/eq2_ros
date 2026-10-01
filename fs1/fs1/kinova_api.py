@@ -102,7 +102,7 @@ class KinovaApi(Node):
             self.publisher_controlador_juntas.publish(msg)
             
             
-def main(args=None):
+def main(args=None):# pragma: no cover
    """Entry point: run the fixed photo -> pick -> place demo once."""
    rclpy.init(args=args)
    kinova_instance = KinovaApi()
