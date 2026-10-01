@@ -20,7 +20,8 @@ import os
 print(cv)
 
 def fun_defaut_path(base = "files/hand_landmarker.task"):
-    """Find ``base`` by walking up from this file until it exists (dev or install layout)."""
+    '''Encontra o arquivo hand_landmarker caso um caminho não seja disponibilizado\n
+    Find ``base`` by walking up from this file until it exists (dev or install layout).'''
     p1 = pathlib.Path(__file__).parent.resolve()
     i = 0
     extra = "src/eq2_ros/fs1"
@@ -46,6 +47,7 @@ def _parse_camera_index(value):
 
 @dataclass
 class handDist:
+    '''Usado para armazenar e analizar o estado da mão'''
     """Hand position (x, y, relative to the dead/max zones) and per-finger distances."""
 
     x:float #classe que guarda as informações
@@ -55,6 +57,7 @@ class handDist:
 
     @property
     def closed(self):
+        """Determina se a mão pode ser considerada fechada"""
         """True if at least 4 fingers are counted as closed."""
         count = 0
         if all(p <= 0 for points in self.finger_dists.values() for p in points): return False
@@ -64,20 +67,24 @@ class handDist:
         return count>=4
 
     def closedFinger(self,n):
+        """Determina se um dedo da mão pode ser considerado fechado"""
         """True if finger ``n`` is counted as closed."""
         points = self.finger_dists[n]
         if all(p <= 0 for p in points):return False
         return all(points[0]<points[k] for k in self.comp_fingers)
     @property
     def toStr2(self):
+        """Cria uma string customisada para uma certas situações"""
         """Multi-line human-readable summary (position + per-finger closed state)."""
         return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in 
                                                                                                  [f"Finger {k:<2}: [{self.closedFinger(k)}]" 
                                                                                                   for k in self.finger_dists])
     @property
     def jDict(self):
+        """cria um dicionario com direções, intensidade e estado da mão e dos dedos para controlar o robo"""
         """Serialize to the JSON payload published on ``/hand_status``."""
-        d = {"closed":self.closed,"closed_fingers": [i for i in self.finger_dists if self.closedFinger(i)]}
+        d = {}#"closed_fingers": [i for i in self.finger_dists if self.closedFinger(i)]}
+        d["closed"] = self.closed
         if self.x>0:  d["direita"] =  self.x
         elif self.x<0:d["esquerda"]= -self.x
         if self.y>0:  d["cima"]    =  self.y
@@ -86,15 +93,15 @@ class handDist:
     
     def __str__(self):
         """Multi-line string with exact per-finger distances (debug use)."""
-        #return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"
         cs = []
         for k,v in self.finger_dists.items():
              s = ", ".join(f"{round(n,1):>5}" for n in v)
              cs.append(f"Finger {k:<2}: [{s},{self.closedFinger(k)}]")
         return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in cs)
-#GIT/ep2_ros/mediapipe/files/hand_landmarker.task"
 
 class HandNode(Node):
+    """O node do detetctor de mão, 
+    responsavel por: detectar a mão, incluindo varios pontos e calcular a distancia do ponto central para as zonas morta e maxima"""
     """Detects a hand in the operator webcam and publishes its position/state."""
 
     def __init__(self,dead_zone_size= (120,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
@@ -156,6 +163,7 @@ class HandNode(Node):
             self.run(limit=test_mode["limit"])
 
     def _publish_frame(self):#monta a mensagem Image sem cv_bridge (evita depender dele aqui)
+        """Envia imagems em /camera/operator/image_raw"""
         """Publish ``self.frame`` as a raw ``sensor_msgs/Image`` (bgr8), no cv_bridge needed."""
         msg = Image()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -166,7 +174,8 @@ class HandNode(Node):
         self.image_pub.publish(msg)
         
     
-    def _dist_center(self,p,i):#calcula onde o ponto central da mão esta, em relação ao limite das duas zonas
+    def _dist_center(self,p,i):
+        """Calcula a distancia do ponto central da mão com os limites das zonas no eixo selecionado"""
         """Return the hand's offset (-1..1) past the dead zone along axis ``i``, or 0 inside it."""
         side = self.rez[i]
         
@@ -180,6 +189,7 @@ class HandNode(Node):
         return 0
 
     def switch_running(self,msg):
+        """Inicia o loop e cria um novo detector, podendo alterar as configurações selecionadas"""
         """Handle ``/switchHandDetection``: apply any tuning params and toggle detection on/off."""
         param = json.loads(msg.data)
         if "frame_jump" in param: 
@@ -203,6 +213,7 @@ class HandNode(Node):
 
     @property
     def hand_dist(self):# cria um objeto handDist
+        """Cria um objeto hand dist"""
         """Build a ``handDist`` from the current ``hand_center``/``hand_points``."""
         #distancia dos pontos do dedo
         point = self.hand_points[0] #ponto base
