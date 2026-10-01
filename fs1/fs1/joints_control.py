@@ -54,7 +54,7 @@ class SensorNode(Node):
         self.publisher_joint_trajectory.publish(msg)
 
     
-def main(args=None):
+def main(args=None):# pragma: no cover
    """Entry point for the joint-trajectory bridge node."""
    rclpy.init(args=args)
    sensor_node = SensorNode()

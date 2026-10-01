@@ -361,7 +361,7 @@ class CamTeleop(Node):
             self.pick_result_pub.publish(String(data='failure'))
 
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     rclpy.init(args=args)
     node = CamTeleop()
     rclpy.spin(node)
@@ -369,5 +369,5 @@ def main(args=None):
     rclpy.shutdown()
 
 
-if __name__ == '__main__':# pragma: no cover
+if __name__ == '__main__':
     main()

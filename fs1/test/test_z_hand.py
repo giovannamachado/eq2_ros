@@ -1,3 +1,5 @@
+import cv2
+
 from fs1.hand_node import *
 import pytest
 import rclpy
@@ -31,14 +33,10 @@ def test_Detector(args=None):
     except KeyboardInterrupt: pass
     finally:
         msg = String()
-        #msg.data = json.dumps({"limit":1,"rez":360,"mzone":60,"dzone":60})
-        #node.switch_running(msg)
-        #msg.data = json.dumps({"limit":limit+25,"rez":360,"mzone":60,"dzone":60})
-        #node.switch_running(msg)
         msg.data = json.dumps({"limit":limit+30,"rez":360,"mzone":60,"dzone":60,"frame_jump":6})
         node.switch_running(msg)
         dist = node.hand_dist
-    
+    cv2.destroyAllWindows()
     node.destroy_node()
     rclpy.shutdown()
     assert dist.closed != None

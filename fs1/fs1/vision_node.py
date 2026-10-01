@@ -131,7 +131,7 @@ class VisionNode(Node):
         super().destroy_node()
 
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     rclpy.init(args=args)
     node = VisionNode()
 
@@ -145,7 +145,7 @@ def main(args=None):
         node.destroy_node()
         rclpy.shutdown()
 
-# pragma: no cover
+
 if __name__ == "__main__":
 
     main()

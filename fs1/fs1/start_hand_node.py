@@ -1,5 +1,5 @@
 import json
-
+from time import sleep
 import cv2
 
 import rclpy
@@ -21,7 +21,7 @@ print(cv2)
 class StartHandNode(Node):
 
     def __init__(self):
-
+        sleep(5)
         super().__init__("start_hand_node")
         self.test_status = self.create_subscription(String,"/hand_status",self.hand_status,10)
         self.publisher = self.create_publisher(String, "/switchHandDetection", 10)
@@ -39,7 +39,7 @@ class StartHandNode(Node):
 
 
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     rclpy.init(args=args)
     node = StartHandNode()
 

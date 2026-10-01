@@ -61,7 +61,7 @@ class GripperClient(Node):
             return
         self.get_logger().info('Meta ACEITA pelo robô, executando movimento...')
 
-def main(args=None):
+def main(args=None):# pragma: no cover
     """Entry point for the gripper action bridge node."""
     rclpy.init(args=args)
     bridge_node = GripperClient()
