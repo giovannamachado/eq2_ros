@@ -2,15 +2,24 @@
 Launch the ROS side of the Flutter front-end integration.
 
 Starts rosbridge (WebSocket for Flutter), the supervisor FSM, the vision /
-joint / gripper nodes, the hand-gesture teleop bridge (servo_adapter +
-cam_teleop) and republishes both cameras as JPEG so the front-end can
-render them over the same WebSocket.
+joint control nodes, and republishes the effector camera as JPEG so the
+front-end can render it over the same WebSocket.
 
-NOT started here (run separately, see eq2_ros/reademe.md):
-* MoveIt Servo itself (``ros2 launch fs1 servo.launch.py``) — needs the
-  real/fake robot hardware interface. Without it, servo_adapter just waits
-  for its service and cmd_vel has no effect; nothing else is affected.
-* ``hand_node`` — needs mediapipe, which this image does not ship.
+Run alongside ``ros2 launch fs1 claw_machine.launch.py`` for the physical
+robot side (MoveIt Servo, servo_adapter, cam_teleop, gripper_client,
+gripper_control, hand_node). The two together are the full system; this
+file deliberately does NOT also start servo_adapter/cam_teleop/
+gripper_client/gripper_control itself anymore — running both of each at
+once means two independent processes both reacting to the same
+/hand_status and both publishing /cmd_vel, which is a real safety risk on
+the physical robot (two controllers fighting over the same motion), not
+just a duplicate-node warning.
+
+NOT started here:
+* MoveIt Servo, servo_adapter, cam_teleop, gripper_client, gripper_control
+  — all in ``claw_machine.launch.py`` now; see above.
+* ``hand_node`` — needs mediapipe, which this image does not ship (run it
+  manually with the dev venv; see eq2_ros/reademe.md).
 
 Arguments:
     rosbridge_port: WebSocket port used by the Flutter app (default 9090).
@@ -66,18 +75,10 @@ def generate_launch_description():
              # também aceitar um caminho /dev/v4l/by-id/...).
              parameters=[{'camera_index': ParameterValue(
                  LaunchConfiguration('camera_index'), value_type=str)}]),
+        # Usado pelo supervisor só para as transições de HOME (RF#01). O
+        # gripper_control/gripper_client e o servo_adapter/cam_teleop da
+        # pega em si agora vêm só do claw_machine.launch.py (ver docstring).
         Node(package=pkg, executable='joints_control', name='joints_control',
-             output='screen'),
-        Node(package=pkg, executable='gripper_control', name='gripper_control',
-             output='screen'),
-        Node(package=pkg, executable='gripper_client', name='gripper_client'),
-
-        # Ponte gesto -> Twist -> MoveIt Servo (RF#04). Sem o servo_node
-        # rodando (ros2 launch fs1 servo.launch.py), o servo_adapter só fica
-        # esperando o serviço dele; não afeta o resto do sistema.
-        Node(package=pkg, executable='servo_adapter', name='servo_adapter',
-             output='screen'),
-        Node(package=pkg, executable='CamTeleop', name='cam_teleop',
              output='screen'),
 
         # /camera/image (raw, from vision_node) -> JPEG for the Flutter app.

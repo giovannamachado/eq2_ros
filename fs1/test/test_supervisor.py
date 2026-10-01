@@ -12,11 +12,12 @@ import pytest  # noqa: E402
 import rclpy  # noqa: E402
 from std_msgs.msg import String  # noqa: E402
 
-from fs1.kinova_api import cubos, home, place, pre_place  # noqa: E402
+from fs1.kinova_api import home, place, pre_place  # noqa: E402
 from fs1.supervisor import (  # noqa: E402
     State,
     Supervisor,
     confirm_occupied_slots,
+    cube_label,
     parse_command,
 )
 
@@ -58,8 +59,7 @@ def ros_context():
 def node():
     """Supervisor with fast timings and recording publishers."""
     supervisor = Supervisor()
-    fast = ('home_settle_s', 'scan_window_s', 'pick_advance_s',
-            'pick_grip_s', 'pick_retreat_s', 'drop_approach_s',
+    fast = ('home_settle_s', 'scan_window_s', 'drop_approach_s',
             'drop_place_s', 'drop_retreat_s')
     supervisor.set_parameters([
         rclpy.parameter.Parameter(name, rclpy.Parameter.Type.DOUBLE, 0.05)
@@ -68,6 +68,7 @@ def node():
     supervisor.state_pub = Recorder()
     supervisor.joints_pub = Recorder()
     supervisor.gripper_pub = Recorder()
+    supervisor.choose_cube_pub = Recorder()
     yield supervisor
     supervisor.destroy_node()
 
@@ -90,9 +91,9 @@ def feed(node, sample):
     node._on_shelf_state(String(data=json.dumps(sample)))
 
 
-def hand(node, closed):
-    """Deliver a /hand_status sample, as fs1.hand_node publishes it."""
-    node._on_hand_status(String(data=json.dumps({'closed': closed})))
+def pick_result(node, result):
+    """Deliver a /pick_result sample, as fs1.cam_teleop publishes it."""
+    node._on_pick_result(String(data=result))
 
 
 def reach_teleop(node, position=4, color='white'):
@@ -219,54 +220,69 @@ def test_invalid_shelf_payload_is_ignored(node):
     assert node._samples == []
 
 
-def test_closed_hand_in_teleop_runs_full_pick_and_drop_cycle(node):
+def test_teleop_tells_cam_teleop_which_cube_was_drawn(node):
     slot = reach_teleop(node, position=4, color='white')
+
+    assert node.choose_cube_pub.messages[-1].data == cube_label(slot)
+
+
+def test_pick_result_success_runs_drop_cycle(node):
+    reach_teleop(node, position=4, color='white')
     node.joints_pub.messages.clear()
     node.gripper_pub.messages.clear()
 
-    hand(node, True)  # gesto gatilho (RF#06)
+    pick_result(node, 'success')  # fs1.cam_teleop concluiu a pega (RF#06)
 
-    assert node.state is State.TELEOP
-    assert json.loads(node.joints_pub.messages[-1].data) == cubos[slot - 1]
-
-    assert spin_until(node, lambda: node.gripper_pub.messages, timeout=1.0)
-    assert node.gripper_pub.messages[0].data == 'fechar'
-
-    # DROP já entra publicando o pre_place (retreat + aproximação do drop
-    # acontecem na mesma transição); o "home" do retreat é o item anterior.
-    assert spin_until(node, lambda: node.state is State.DROP, timeout=2.0)
+    # DROP já entra publicando o pre_place.
+    assert spin_until(node, lambda: node.state is State.DROP, timeout=1.0)
     assert json.loads(node.joints_pub.messages[-1].data) == pre_place
-    assert json.loads(node.joints_pub.messages[-2].data) == home
 
     assert spin_until(node, lambda: node.state is State.IDLE, timeout=3.0)
     joint_targets = [json.loads(m.data) for m in node.joints_pub.messages]
-    assert joint_targets == [cubos[slot - 1], home, pre_place, place, home]
-    assert [m.data for m in node.gripper_pub.messages] == ['fechar', 'abrir']
+    assert joint_targets == [pre_place, place, home]
+    assert [m.data for m in node.gripper_pub.messages] == ['abrir']
     assert node.selected_slot is None
     assert not node._picking
 
 
-def test_closed_hand_gesture_needs_open_close_edge(node):
-    reach_teleop(node)
+def test_pick_result_failure_goes_home_and_idle(node):
+    slot = reach_teleop(node, position=4, color='white')
     node.joints_pub.messages.clear()
 
-    hand(node, True)
-    hand(node, True)  # segurar a mão fechada não deve reiniciar a pega
+    pick_result(node, 'failure')  # gesto fora do slot sorteado (RF#07)
 
-    assert len(node.joints_pub.messages) == 1
+    assert node.state is State.FAILURE
+    assert str(slot) in node.message
+    assert json.loads(node.joints_pub.messages[-1].data) == home
+
+    assert spin_until(node, lambda: node.state is State.IDLE, timeout=2.0)
+    assert node.selected_slot is None
+    assert not node._picking
 
 
-def test_hand_status_ignored_outside_teleop(node):
-    hand(node, True)
+def test_pick_result_ignored_once_already_picking(node):
+    reach_teleop(node)
+    pick_result(node, 'success')
+    assert node.state is State.DROP
+    node.joints_pub.messages.clear()
+
+    pick_result(node, 'failure')  # resultado duplicado/atrasado é ignorado
+
+    assert node.state is State.DROP
+    assert node.joints_pub.messages == []
+
+
+def test_pick_result_ignored_outside_teleop(node):
+    pick_result(node, 'success')
 
     assert node.state is State.IDLE
     assert not node._picking
 
 
-def test_invalid_hand_status_payload_is_ignored(node):
+def test_unknown_pick_result_is_ignored(node):
     reach_teleop(node)
 
-    node._on_hand_status(String(data='not json'))
+    node._on_pick_result(String(data='talvez'))
 
     assert node.state is State.TELEOP
     assert not node._picking
@@ -274,8 +290,8 @@ def test_invalid_hand_status_payload_is_ignored(node):
 
 def test_stop_during_pick_cancels_the_sequence(node):
     reach_teleop(node)
-    hand(node, True)
-    assert node.state is State.TELEOP
+    pick_result(node, 'success')
+    assert node.state is State.DROP
     node.joints_pub.messages.clear()
 
     command(node, 'stop')

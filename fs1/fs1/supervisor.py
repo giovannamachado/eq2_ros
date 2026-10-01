@@ -18,18 +18,28 @@ directly:
   ``joints_control``.
 * ``/controlador_garra`` (``"abrir"``/``"fechar"``) consumed by
   ``gripper_control``.
-* ``/hand_status`` (``std_msgs/String``, JSON with a ``"closed"`` bool)
-  published by ``fs1.hand_node``: the closed-hand gesture, watched only
-  during TELEOP, triggers the automatic pick/drop routine (RF#06).
+* ``/escolher_cubo`` (``std_msgs/String``, e.g. ``"Cubo 04"``) consumed by
+  ``fs1.cam_teleop``: tells it which of the 8 known cube positions is the
+  one picked by the sorteio, published as soon as TELEOP starts.
+* ``/pick_result`` (``std_msgs/String``, ``"success"``/``"failure"``)
+  published by ``fs1.cam_teleop`` once its own closed-loop pick sequence
+  (triggered by the same closed-hand gesture, via ``/hand_status``) finishes
+  — "success" if it was aligned with the right cube when the gesture fired,
+  "failure" otherwise (RF#07). The supervisor does not react to
+  ``/hand_status`` directly anymore; see the note below.
 
-Full cycle: IDLE -> HOME_INIT -> SCANNING -> TELEOP -> (closed-hand gesture)
--> advance into the slot, grip, retreat -> DROP -> place, release -> IDLE.
-The pick/place joint positions come from ``fs1.kinova_api`` (already
-calibrated on the bench). FAILURE (RF#07, wrong alignment) is not
-implemented: telling a good pick from a missed one needs either the real
-end-effector position relative to the slot or a grip-success signal, and
-neither exists yet, so every closed-hand gesture during TELEOP takes the
-success path.
+Full cycle: IDLE -> HOME_INIT -> SCANNING -> TELEOP -> (cam_teleop grips the
+cube and reports success) -> DROP -> place, release -> IDLE, or -> (reports
+failure) -> FAILURE -> HOME -> IDLE. The actual grip+retreat motion (RF#06)
+and the alignment check (RF#07) both live in ``fs1.cam_teleop``
+(closed-loop, real end-effector position via TF2) — the supervisor only
+tells it which cube to aim for and reacts to the outcome. It no longer runs
+its own open-loop pick attempt: with ``fs1.cam_teleop`` also listening to
+``/hand_status`` and driving the arm via ``/cmd_vel``, having the supervisor
+*also* send joint-trajectory commands on the same gesture would be two
+controllers fighting over the same motion. Only the drop leg (DROP: moving
+the already-grasped piece to the bin) stays joint-trajectory, since by then
+cam_teleop's own sequence has finished and the arm is free again.
 """
 
 import json
@@ -40,20 +50,24 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 
-from fs1.kinova_api import cubos, home, place, pre_place
+from fs1.kinova_api import home, place, pre_place
 
-# Tempos padrão (segundos) de cada etapa da rotina automática de pega e
-# drop, copiados de fs1/kinova_api.py (KinovaApi.pick_one_cube /
-# put_in_box_function), que já tinham essas posições calibradas na bancada.
-# Viram parâmetros ROS (ver Supervisor.__init__), então dá para ajustar a
-# velocidade da pega sem mexer em código, ex.:
-#   ros2 run fs1 supervisor --ros-args -p pick_advance_s:=5.0
-DEFAULT_PICK_ADVANCE_S = 9.0
-DEFAULT_PICK_GRIP_S = 3.0
-DEFAULT_PICK_RETREAT_S = 7.0
+# Tempos padrão (segundos) de cada etapa do drop (a pega em si é do
+# fs1.cam_teleop agora; ver docstring do módulo), copiados de
+# fs1/kinova_api.py (KinovaApi.put_in_box_function), que já tinha essas
+# posições calibradas na bancada. Viram parâmetros ROS (ver
+# Supervisor.__init__), então dá para ajustar a velocidade sem mexer em
+# código, ex.: ros2 run fs1 supervisor --ros-args -p drop_approach_s:=5.0
 DEFAULT_DROP_APPROACH_S = 9.0
 DEFAULT_DROP_PLACE_S = 9.0
 DEFAULT_DROP_RETREAT_S = 7.0
+
+# fs1.cam_teleop usa "Cubo 01".."Cubo 08" (ver self.posicoes_cubos lá) para
+# os 8 slots; o sorteio aqui usa posição 1..8. Essa função traduz entre os
+# dois sem precisar duplicar os nomes em nenhum dos dois arquivos.
+def cube_label(position):
+    """Translate a slot position (1..8) to fs1.cam_teleop's "Cubo 0N" name."""
+    return f'Cubo {position:02d}'
 
 MIN_PERSISTENCE_S = 1.0  # RNF#02: minimum window before confirming a slot.
 STATE_HEARTBEAT_S = 0.5
@@ -115,13 +129,9 @@ class Supervisor(Node):
 
         self.declare_parameter('home_settle_s', 7.0)
         self.declare_parameter('scan_window_s', 2.0)
-        self.declare_parameter('pick_advance_s', DEFAULT_PICK_ADVANCE_S)
-        self.declare_parameter('pick_grip_s', DEFAULT_PICK_GRIP_S)
-        self.declare_parameter('pick_retreat_s', DEFAULT_PICK_RETREAT_S)
         self.declare_parameter('drop_approach_s', DEFAULT_DROP_APPROACH_S)
         self.declare_parameter('drop_place_s', DEFAULT_DROP_PLACE_S)
         self.declare_parameter('drop_retreat_s', DEFAULT_DROP_RETREAT_S)
-
 
         self.state = State.IDLE
         self.selected_slot = None
@@ -130,22 +140,24 @@ class Supervisor(Node):
         self._samples = []
         self._transition_timer = None
         self._picking = False
-        self._hand_was_closed = False
 
         self.state_pub = self.create_publisher(String, '/supervisor/state', 10)
         self.joints_pub = self.create_publisher(String, '/posicoes_garra', 10)
         self.gripper_pub = self.create_publisher(
             String, '/controlador_garra', 10)
+        # Diz ao fs1.cam_teleop qual dos 8 cubos é o sorteado (ver docstring
+        # do módulo).
+        self.choose_cube_pub = self.create_publisher(
+            String, '/escolher_cubo', 10)
 
         self.create_subscription(
             String, '/supervisor/command', self._on_command, 10)
         self.create_subscription(
             String, '/shelf_state', self._on_shelf_state, 10)
-        # Vem do fs1.hand_node (rastreamento de mão): {"closed": bool, ...}.
-        # Só é usado durante TELEOP, para disparar a pega automática (RF#06).
+        # Resultado do próprio ciclo de pega do fs1.cam_teleop (RF#06/RF#07):
+        # "success" ou "failure". Só é considerado durante TELEOP.
         self.create_subscription(
-            String, '/hand_status', self._on_hand_status, 10)
-        
+            String, '/pick_result', self._on_pick_result, 10)
 
         self.create_timer(STATE_HEARTBEAT_S, self._publish_state)
         self._publish_state()
@@ -210,50 +222,32 @@ class Supervisor(Node):
         except json.JSONDecodeError:
             self.get_logger().warn('Invalid /shelf_state payload ignored.')
 
-    def _on_hand_status(self, msg):
+    def _on_pick_result(self, msg):
         """
-        Watch for the closed-hand gesture while teleoperating (RF#06).
+        React to fs1.cam_teleop's own pick/failure outcome (RF#06/RF#07).
 
-        Only reacts during TELEOP, and only on the closed-hand *edge* (open
-        -> closed), so holding the hand closed doesn't retrigger the pick.
-
-        Limitation: this always takes the success path (advance, grip,
-        return, drop). Telling a correctly-aligned pick from a missed one
-        (RF#07) needs to know the end-effector's real position relative to
-        the slot (e.g. via TF2, the way fs1.cam_teleop checks its workspace
-        limits) or a grip-success signal from the gripper; neither exists
-        yet, so a wrong alignment today still runs the same "success" motion
-        instead of the FAILURE recovery in fs1's FSM diagram.
+        cam_teleop watches /hand_status itself and runs the actual
+        grip-or-retry motion with real TF2 feedback; the supervisor just
+        waits for the verdict. "success" means the piece is in the gripper
+        and the arm is back where teleop left it -> go place it (DROP).
+        "failure" means the gesture fired away from the target cube -> go
+        home and let the operator try again.
         """
         if self.state is not State.TELEOP or self._picking:
             return
-        try:
-            closed = bool(json.loads(msg.data).get('closed', False))
-        except json.JSONDecodeError:
-            return
-
-        if closed and not self._hand_was_closed:
-            self._start_pick_sequence()
-        self._hand_was_closed = closed
-
-    def _start_pick_sequence(self):
-        """TELEOP -> advance into the slot and grip (first half of RF#06)."""
-        self._picking = True
-        slot = self.selected_slot
-        self._set_state(
-            State.TELEOP, f'Pegando a peça do slot {slot}...')
-        self.joints_pub.publish(String(data=json.dumps(cubos[slot - 1])))
-        self._after(self.get_parameter('pick_advance_s').value, self._pick_close_gripper)
-
-    def _pick_close_gripper(self):
-        """Close the gripper once the arm has reached the cube."""
-        self.gripper_pub.publish(String(data='fechar'))
-        self._after(self.get_parameter('pick_grip_s').value, self._pick_retreat)
-
-    def _pick_retreat(self):
-        """Retreat to HOME with the piece before heading to the drop."""
-        self.joints_pub.publish(String(data=json.dumps(home)))
-        self._after(self.get_parameter('pick_retreat_s').value, self._drop_approach)
+        result = msg.data.strip().lower()
+        if result == 'success':
+            self._picking = True
+            self._drop_approach()
+        elif result == 'failure':
+            self._picking = True
+            self._set_state(
+                State.FAILURE,
+                f'Gesto fora do slot {self.selected_slot}. Voltando para HOME.')
+            self._go_home(open_gripper=False)
+            self._after(self.get_parameter('home_settle_s').value, self._finish_pick_cycle)
+        else:
+            self.get_logger().warn(f'/pick_result desconhecido ignorado: {msg.data!r}')
 
     def _drop_approach(self):
         """HOME -> DROP: move to the pre-place pose."""
@@ -273,11 +267,13 @@ class Supervisor(Node):
         self._after(self.get_parameter('drop_retreat_s').value, self._finish_pick_cycle)
 
     def _finish_pick_cycle(self):
-        """DROP -> IDLE: cycle complete, ready for the next start command."""
+        """DROP/FAILURE -> IDLE: cycle complete, ready for the next start."""
         self._picking = False
-        self._hand_was_closed = False
         self.selected_slot = None
-        self._set_state(State.IDLE, 'Peça entregue. Sistema em repouso.')
+        if self.state is not State.FAILURE:
+            self._set_state(State.IDLE, 'Peça entregue. Sistema em repouso.')
+        else:
+            self._set_state(State.IDLE, 'Sistema em repouso.')
 
     def _on_command(self, msg):
         """Handle ``start``/``stop`` commands from the front-end."""
@@ -322,17 +318,16 @@ class Supervisor(Node):
         self._set_state(
             State.TELEOP,
             f'Pegue a peça {color} do slot {self.selected_slot}.')
-        
-        msg = String()
-        msg.data = random.choice(sorted(occupied))
-        self.state_pub.publish(msg)
+        # Avisa o fs1.cam_teleop qual dos 8 cubos é o sorteado, para ele
+        # saber se o gesto de fechar a mão aconteceu no lugar certo.
+        self.choose_cube_pub.publish(
+            String(data=cube_label(self.selected_slot)))
 
     def _stop(self):
         """Any state -> IDLE: cancel pending work and return to HOME."""
         self._cancel_timer()
         self.selected_slot = None
         self._picking = False
-        self._hand_was_closed = False
         self._go_home(open_gripper=False)
         self._set_state(State.IDLE, 'Operação interrompida. Robô em HOME.')
 

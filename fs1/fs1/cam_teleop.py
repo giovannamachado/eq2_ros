@@ -31,7 +31,11 @@ class CamTeleop(Node):
 
         # Publisher para mandar mensagens ao nó de controle de garra
         self.publisher_gripper_controller = self.create_publisher(String, '/controlador_garra', 10)
-        
+
+        # Avisa o fs1.supervisor o resultado do ciclo de pega ("success"/
+        # "failure"), para ele saber quando sair do TELEOP (RF#06/RF#07).
+        self.pick_result_pub = self.create_publisher(String, '/pick_result', 10)
+
         # --- Inicialização do TF2 Listener ---
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -182,6 +186,7 @@ class CamTeleop(Node):
                     self.posicao_inicial = None
                     self.fase_controle = 'ALINHAR_YZ'
                     self.publisher_.publish(Twist())
+                    self.pick_result_pub.publish(String(data='success'))
                     return
 
                 vy = self.kp * erro_y
@@ -349,9 +354,11 @@ class CamTeleop(Node):
                 
             self.publisher_.publish(Twist())
             self.get_logger().info("✨ Movimento de frente e trás concluído.")
+            self.pick_result_pub.publish(String(data='failure'))
 
         except TransformException as ex:
             self.get_logger().error(f"Erro no TF2 durante movimento de frente e trás: {ex}")
+            self.pick_result_pub.publish(String(data='failure'))
 
 
 def main(args=None):
