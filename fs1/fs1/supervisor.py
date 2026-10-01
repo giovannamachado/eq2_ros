@@ -205,6 +205,7 @@ class Supervisor(Node):
         self._cancel_timer()
 
         def fire():
+            """Cancel the one-shot timer and run ``callback`` once."""
             self._cancel_timer()
             callback()
 
@@ -226,6 +227,7 @@ class Supervisor(Node):
         future = client.call_async(Trigger.Request())
 
         def log_result(f, name=name):
+            """Log the Trigger response, or a warning if the call failed."""
             try:
                 self.get_logger().info(f'{name}: {f.result()}')
             except Exception as exc:

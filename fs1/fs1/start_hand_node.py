@@ -1,3 +1,5 @@
+"""Small helper node that activates hand detection on startup (manual test tool)."""
+
 import json
 from time import sleep
 import cv2
@@ -19,8 +21,10 @@ from fs1.detector import (
 print(cv2)
 
 class StartHandNode(Node):
+    """Waits for the stack to settle, then switches on hand detection."""
 
     def __init__(self):
+        """Wait 5s for other nodes to be ready, then activate hand detection."""
         sleep(5)
         super().__init__("start_hand_node")
         self.test_status = self.create_subscription(String,"/hand_status",self.hand_status,10)
@@ -28,10 +32,12 @@ class StartHandNode(Node):
         self.get_logger().info("Test node started.")
         self.activate_handNode()
     def hand_status(self,msg:String):
+        """Parse an incoming ``/hand_status`` message (no-op, kept for manual testing)."""
         d=json.loads(msg.data)
         #self.get_logger().info("reciving")
         #self.get_logger().info(json.dumps(d,indent=0))
     def activate_handNode(self):
+        """Publish the ``/switchHandDetection`` command that turns hand_node on."""
         d = {"frame_jump":3 }
         msg =String()
         msg.data = json.dumps(d)
@@ -40,6 +46,7 @@ class StartHandNode(Node):
 
 
 def main(args=None):# pragma: no cover
+    """Entry point: run StartHandNode once at startup."""
     rclpy.init(args=args)
     node = StartHandNode()
 

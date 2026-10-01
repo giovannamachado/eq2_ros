@@ -9,7 +9,7 @@ class gripperControl(Node):
     """Listens on ``/controlador_garra`` and republishes as ``/gripper_command``."""
 
     def __init__(self):
-
+        """Create the ``/gripper_command`` publisher and ``/controlador_garra`` subscription."""
         super().__init__('transmissor_da_garra')
         self.get_logger().info('transmissor da garra esta ligado')     
         self.get_logger().info("entrei aqui") 

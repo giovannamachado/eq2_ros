@@ -80,6 +80,7 @@ class ServoAdapter(Node):
         Publishes the initial trajectory and starts a timer to wait for its completion.
         """
         def conversor_graus_radianos(lista):
+            """Convert a list of angles in degrees to radians, same order."""
             resultado = []
             for valor in lista:
                 resultado.append(math.radians(valor))

@@ -1,3 +1,9 @@
+"""
+Closed-loop Cartesian pick controller: aligns the end-effector with the
+sorteado cube via MoveIt Servo twist commands, closes the gripper, and
+reports the outcome back to fs1.supervisor on /pick_result.
+"""
+
 import json
 import math
 import rclpy
@@ -12,7 +18,10 @@ from tf2_ros.transform_listener import TransformListener
 
 
 class CamTeleop(Node):
+    """Drives the arm via MoveIt Servo twist commands to grip the chosen cube."""
+
     def __init__(self):
+        """Create the TF2 listener, the twist/gripper publishers, and the control timer."""
         super().__init__('keyboard_teleop')
         self.subscriber_cam_node = self.create_subscription(String, '/hand_status', self.recebi_mensagem, 10)
         self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
@@ -201,6 +210,7 @@ class CamTeleop(Node):
             self.get_logger().warn(f"Aguardando TF2 para navegação: {ex}")
 
     def callback_mudar_alvo(self, msg: String):
+        """Legacy /ir_para_cubo handler: set the target cube by name (no motion)."""
         texto_recebido = msg.data.replace(":", "").strip()
         if texto_recebido in self.posicoes_cubos:
             self.cubo_alvo_id = texto_recebido
@@ -218,6 +228,7 @@ class CamTeleop(Node):
             self.get_logger().warn(f"Tentativa de escolher cubo inválido: '{texto_recebido}'")
 
     def verificar_alinhamento_cubo(self) -> tuple | None:
+        """Return ``(cube_name, distance_2d, (y, z))`` for the cube closest to the gripper, if any."""
         try:
             transform = self.tf_buffer.lookup_transform(
                 'base_link',
@@ -242,6 +253,9 @@ class CamTeleop(Node):
         return None
 
     def recebi_mensagem(self, mensagem: String):
+        """Handle /hand_status: on a closed-hand gesture, start the pick sequence
+        if aligned with the target cube, or retry if not (RF#06/RF#07);
+        otherwise forward the gesture as manual jog Twist commands."""
         try:
             dados = json.loads(mensagem.data)
         except json.JSONDecodeError:
@@ -362,6 +376,7 @@ class CamTeleop(Node):
 
 
 def main(args=None):# pragma: no cover
+    """Entry point for the Cartesian pick-controller node."""
     rclpy.init(args=args)
     node = CamTeleop()
     rclpy.spin(node)

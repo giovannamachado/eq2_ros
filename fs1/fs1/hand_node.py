@@ -1,3 +1,9 @@
+"""
+Operator webcam node: detects one hand via MediaPipe, publishes its
+position/open-closed state as ``/hand_status``, and republishes the
+annotated frame as ``/camera/operator/image_raw`` for the front-end.
+"""
+
 import json
 from dataclasses import dataclass
 import pathlib
@@ -14,6 +20,7 @@ import os
 print(cv)
 
 def fun_defaut_path(base = "files/hand_landmarker.task"):
+    """Find ``base`` by walking up from this file until it exists (dev or install layout)."""
     p1 = pathlib.Path(__file__).parent.resolve()
     i = 0
     extra = "src/eq2_ros/fs1"
@@ -39,6 +46,8 @@ def _parse_camera_index(value):
 
 @dataclass
 class handDist:
+    """Hand position (x, y, relative to the dead/max zones) and per-finger distances."""
+
     x:float #classe que guarda as informações
     y:float
     finger_dists: dict#lista de dedos
@@ -46,6 +55,7 @@ class handDist:
 
     @property
     def closed(self):
+        """True if at least 4 fingers are counted as closed."""
         count = 0
         if all(p <= 0 for points in self.finger_dists.values() for p in points): return False
         for points in self.finger_dists.values():
@@ -54,16 +64,19 @@ class handDist:
         return count>=4
 
     def closedFinger(self,n):
+        """True if finger ``n`` is counted as closed."""
         points = self.finger_dists[n]
         if all(p <= 0 for p in points):return False
         return all(points[0]<points[k] for k in self.comp_fingers)
     @property
-    def toStr2(self):                           
+    def toStr2(self):
+        """Multi-line human-readable summary (position + per-finger closed state)."""
         return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"+"".join(f"\n\t\t{v}" for v in 
                                                                                                  [f"Finger {k:<2}: [{self.closedFinger(k)}]" 
                                                                                                   for k in self.finger_dists])
     @property
     def jDict(self):
+        """Serialize to the JSON payload published on ``/hand_status``."""
         d = {"closed":self.closed,"closed_fingers": [i for i in self.finger_dists if self.closedFinger(i)]}
         if self.x>0:  d["direita"] =  self.x
         elif self.x<0:d["esquerda"]= -self.x
@@ -72,6 +85,7 @@ class handDist:
         return json.dumps(d)
     
     def __str__(self):
+        """Multi-line string with exact per-finger distances (debug use)."""
         #return f"handDist(x:{self.x*100:.1f}%,y:{self.y*100:.1f}%,closed:{self.closed})"
         cs = []
         for k,v in self.finger_dists.items():
@@ -81,7 +95,8 @@ class handDist:
 #GIT/ep2_ros/mediapipe/files/hand_landmarker.task"
 
 class HandNode(Node):
-    
+    """Detects a hand in the operator webcam and publishes its position/state."""
+
     def __init__(self,dead_zone_size= (120,90),#limites da zona morta, pode ser int caso o ela seja quadrada, tuple(int,int) para retangulos
                 max_zone_size= (120,90),#limites da zona maxima, similar ao anterior, usa a distancia para borda ao invez do seu tamanho
 
@@ -96,6 +111,7 @@ class HandNode(Node):
                 cross_mode = False,#O modo de exibição das zonas da imagem
                 print_mode = False,
                 test_mode:dict|bool = False):#aciona o run no final do init para testes
+        """Load the MediaPipe hand landmarker and create the ROS publishers/subscriptions."""
         super().__init__("hand_node")
         # Índice da câmera do operador (webcam do notebook). No laboratório é
         # um dispositivo diferente do da câmera do efetuador (usada pelo
@@ -140,6 +156,7 @@ class HandNode(Node):
             self.run(limit=test_mode["limit"])
 
     def _publish_frame(self):#monta a mensagem Image sem cv_bridge (evita depender dele aqui)
+        """Publish ``self.frame`` as a raw ``sensor_msgs/Image`` (bgr8), no cv_bridge needed."""
         msg = Image()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.height, msg.width = self.frame.shape[:2]
@@ -150,6 +167,7 @@ class HandNode(Node):
         
     
     def _dist_center(self,p,i):#calcula onde o ponto central da mão esta, em relação ao limite das duas zonas
+        """Return the hand's offset (-1..1) past the dead zone along axis ``i``, or 0 inside it."""
         side = self.rez[i]
         
         if p>=self.limit and p<=side-self.limit:#verifica se esta dentro dos limites aceitos
@@ -162,6 +180,7 @@ class HandNode(Node):
         return 0
 
     def switch_running(self,msg):
+        """Handle ``/switchHandDetection``: apply any tuning params and toggle detection on/off."""
         param = json.loads(msg.data)
         if "frame_jump" in param: 
             self.frame_jump = param["frame_jump"] if param["frame_jump"] and param["frame_jump"]>1 else False
@@ -184,6 +203,7 @@ class HandNode(Node):
 
     @property
     def hand_dist(self):# cria um objeto handDist
+        """Build a ``handDist`` from the current ``hand_center``/``hand_points``."""
         #distancia dos pontos do dedo
         point = self.hand_points[0] #ponto base
         fing = {} #lista de dedos
@@ -200,19 +220,23 @@ class HandNode(Node):
                         finger_dists=fing, comp_fingers={2:1.0})
 
     def _doubleLine(self,p1,p2,color,color2):#desenha duas linhas uma em cima da outra
+        """Draw a thick ``color`` line with a thin ``color2`` line on top (p1 to p2)."""
         cv.line(self.frame,p1,p2,color=color,thickness=2)
         cv.line(self.frame,p1,p2,color=color2,thickness=1)
 
     def _doublePoint(self,p1,color,color2,size = 2):#desenha dois pontos um em cima da outro
+        """Draw a ``color`` dot with a smaller ``color2`` dot on top, at ``p1``."""
         cv.circle(self.frame,p1,size+1,color=color,thickness=2)
         cv.circle(self.frame,p1,size,color=color2,thickness=1)
 
     def sendSTOP(self):
+        """Publish ``{"STOP": true}`` on ``/hand_status`` (hand left the frame)."""
         msg = String()
         msg.data = json.dumps({"STOP":True})
         self.send_hand.publish(msg)
         
     def _drawnInfo(self,box,id): # publica o estado da mão
+        """Draw the debug overlay (zones, hand skeleton, status text) and publish ``/hand_status``."""
         dist = self.hand_dist
         (cx,cy) = self.center
         (x,y) =(int(self.hand_center[0]),int(self.hand_center[1]))
@@ -239,6 +263,7 @@ class HandNode(Node):
         if self.print_mode: print(f"{id}\n\tDist:{dist}")# print para as informações das mãos
         
     def run(self,limit = False):
+        """Open the camera and loop: detect the hand each frame and publish its state."""
         self.get_logger().info("Running Detector")
         #cap = cv.VideoCapture(0, cv.CAP_DSHOW)
         # cv.CAP_V4L2 explícito: ver vision_node.py (mesma correção -- sem
@@ -319,6 +344,7 @@ class HandNode(Node):
 
 
 def main(args=None):# pragma: no cover
+    """Entry point for the hand-tracking node."""
     #d = {"detection":0.4,"presence":0.4,"traking":0.6}
     rclpy.init(args=args)
     node = HandNode(cross_mode=True,frame_jump=3)

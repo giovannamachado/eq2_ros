@@ -1,3 +1,9 @@
+"""
+Vision node: reads the effector camera, finds ArUco markers on the shelf
+cubes, and publishes each slot's occupancy/color as ``/shelf_state`` plus
+the raw frame as ``/camera/image`` (RF#02/RF#03).
+"""
+
 import json
 
 import cv2
@@ -21,7 +27,8 @@ from fs1.detector import (
 
 
 def _parse_camera_index(value):
-
+    """Turn the ``camera_index`` parameter into what ``cv2.VideoCapture`` wants
+    (a plain int, or a device path string, e.g. ``/dev/v4l/by-id/...``)."""
     text = str(value)
 
     return (int(text) if text.lstrip("-").isdigit()
@@ -30,10 +37,10 @@ def _parse_camera_index(value):
 
 
 class VisionNode(Node):
-    
+    """Captures the effector camera and publishes shelf occupancy/color."""
 
     def __init__(self):
-        
+        """Open the camera and create the ``/shelf_state``/``/camera/image`` publishers."""
         super().__init__("vision_node")
 
 
@@ -59,7 +66,7 @@ class VisionNode(Node):
         self.get_logger().info("Vision node started.")
 
     def process_frame(self):
-
+        """Read one frame, detect markers/colors, and publish the shelf state."""
         ret, frame = self.camera.read()
 
         if not ret:
@@ -122,20 +129,21 @@ class VisionNode(Node):
 
             cv2.waitKey(1)
 
-    def publish_shelf_state(self, shelf_state): 
-        
+    def publish_shelf_state(self, shelf_state):
+        """Publish ``shelf_state`` (list of 8 slot dicts) as JSON."""
         msg = String()
         msg.data = json.dumps(shelf_state)
         self.publisher.publish(msg)
 
     def destroy_node(self):
-
+        """Release the camera handle before shutting the node down."""
         self.camera.release()
         cv2.destroyAllWindows()
         super().destroy_node()
 
 
 def main(args=None):# pragma: no cover
+    """Entry point for the vision node."""
     rclpy.init(args=args)
     node = VisionNode()
 

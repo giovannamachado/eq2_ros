@@ -1,5 +1,8 @@
+"""Standalone low-level motion-state transition table (not wired into any node)."""
 
-def change_state(state:str,var:str):
+
+def change_state(state: str, var: str):
+    """Return the next low-level motion state given the current ``state`` and event ``var``."""
     match(state):
         case("OFF"): return "HOME"
         case("HOME"): 
